@@ -15,6 +15,7 @@ public class ClientCallbackImpl extends UnicastRemoteObject implements ClientCal
     private ParkingInterface parkingInterface;
     private ParkingGridManager parkingGrid;  
     public ClientCallbackImpl(ParkingInterface parkingInterface, ParkingGridManager parkingGridManager) throws RemoteException {
+        super();
         this.parkingInterface = parkingInterface;
         this.parkingGrid = parkingGridManager;
         initializeSlot();
@@ -37,9 +38,16 @@ public class ClientCallbackImpl extends UnicastRemoteObject implements ClientCal
                 break;
             }
         }
-
         Platform.runLater(() -> {
            parkingGrid.updateSingleSlot(slotId, status);
         });
     }
+
+    @Override
+    public void setGridManager(ParkingGridManager gridManager) throws RemoteException {
+        this.parkingGrid = gridManager;
+    }
+
+    @Override 
+    public void ping() throws RemoteException {}; 
 }

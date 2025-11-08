@@ -15,5 +15,8 @@ public interface ParkingInterface extends Remote {
    void updateSlotStatus(String spotId, String status,String plateName, String owner, String arriveTime) throws RemoteException;
    ParkingSlot getUpdatedSlot(String spotId) throws RemoteException;
    void registerClient(ClientCallback client) throws RemoteException; // Đăng ký client
-   void unregisterClient(ClientCallback client) throws RemoteException;
+
+   boolean checkId(String plateName) throws RemoteException;
+   boolean checkPlace (String placename) throws RemoteException;
+   void ping() throws RemoteException;
 }

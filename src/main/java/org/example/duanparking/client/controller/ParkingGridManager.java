@@ -92,4 +92,6 @@ public class ParkingGridManager {
     public String getStringSlot(){
         return null;
     }
+
+
 }

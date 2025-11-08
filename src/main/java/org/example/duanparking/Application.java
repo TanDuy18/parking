@@ -4,6 +4,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+
 import java.io.IOException;
 
 public class Application extends javafx.application.Application {
@@ -16,7 +17,7 @@ public class Application extends javafx.application.Application {
         stage.show();
     }
 
-    public static void main(String[] args) {
+   public static void main(String[] args) {
         launch();
     }
 }
