@@ -11,10 +11,10 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import nu.pattern.OpenCV;
-import org.example.duanparking.client.ClientCallbackImpl;
-import org.example.duanparking.common.ClientCallback;
-import org.example.duanparking.common.ParkingInterface;
-import org.example.duanparking.model.ParkingSlot;
+import org.example.duanparking.common.dto.ParkingSlotDTO;
+import org.example.duanparking.common.remote.ClientCallback;
+import org.example.duanparking.common.remote.ParkingInterface;
+import org.example.duanparking.server.dao.ParkingSlotEntity;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
@@ -26,63 +26,44 @@ import org.opencv.videoio.VideoCapture;
 import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.ResourceBundle;
 
 
 public class DasboardController implements Initializable {
-    @FXML
-    private ImageView cameraView;
-    @FXML
-    private Button acceptBtn;
-    @FXML
-    private Button outBtn;
-    @FXML
-    private Button inBtn;
-    @FXML
-    private GridPane parkingGrid;
+    @FXML private ImageView cameraView;
+    @FXML private Button acceptBtn;
+    @FXML private Button outBtn;
+    @FXML private Button inBtn;
+    @FXML private GridPane parkingGrid;
 
-    @FXML
-    private AnchorPane outPane;
-    @FXML
-    private AnchorPane inPane;
+    @FXML private AnchorPane outPane;
+    @FXML private AnchorPane inPane;
 
-    @FXML
-    private TextField plateField1;
-    @FXML
-    private TextField placeField1;
-    @FXML
-    private TextField arrivalTimeField1;
-    @FXML
-    private TextField ticketField1;
-    @FXML
-    private TextField ownerField1;
+    @FXML private TextField plateField1;
+    @FXML private TextField placeField1;
+    @FXML private TextField arrivalTimeField1;
+    @FXML private TextField ticketField1;
+    @FXML private TextField ownerField1;
+    @FXML private TextField InforField1;
 
-    @FXML
-    private TextField arrivalTimeField0;
-    @FXML
-    private TextField leaveTimeField0;
-    @FXML
-    private TextField placeField0;
-    @FXML
-    private TextField plateField0;
-    @FXML
-    private TextField priceField0;
-    @FXML
-    private TextField ticketField0;
-    @FXML
-    private TextField ownerField0;
+    @FXML private TextField InforField0;
+    @FXML private TextField arrivalTimeField0;
+    @FXML private TextField leaveTimeField0;
+    @FXML private TextField placeField0;
+    @FXML private TextField plateField0;
+    @FXML private TextField priceField0;
+    @FXML private TextField ticketField0;
+    @FXML private TextField ownerField0;
 
     private ParkingInterface parkingInterface;
     private ClientCallback clientCallback;
     private static RmiClientManager manager;
     private VideoCapture capture;
     private boolean cameraActive = true;
-    ArrayList<ParkingSlot> slots = new ArrayList<>();
 
     int checkInOut = 0;
 
@@ -119,10 +100,11 @@ public class DasboardController implements Initializable {
             parkingInterface = manager.getParkingInterface();
             clientCallback = manager.getClientCallBack();
 
-            slots = parkingInterface.getSlot();
+            List<ParkingSlotDTO> slots = parkingInterface.getAllSlots();
 
-            gridManager = new ParkingGridManager(parkingGrid, slots);
-            gridManager.parkingSlotGrid();
+            gridManager = new ParkingGridManager(parkingGrid);
+            gridManager.updateGrid(slots);
+            //gridManager.updateGrid(slots);
 
             manager.setGridManager(gridManager);
 
@@ -209,8 +191,7 @@ public class DasboardController implements Initializable {
                                 Platform.runLater(() -> openNotificationScreen("Biển số đã trong bãi đỗ!"));
                             } else {
                                     try {
-                                        parkingInterface.updateSlotStatus(rentPlace1, "OCCUPIED", plateName1, owner1,
-                                                formatted);
+                                        parkingInterface.updateSlotStatus(rentPlace1, "OCCUPIED", plateName1, owner1, formatted);
                                     } catch (RemoteException e) {
                                         e.printStackTrace();
                                     }

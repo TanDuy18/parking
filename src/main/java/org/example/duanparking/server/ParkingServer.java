@@ -1,12 +1,8 @@
 package org.example.duanparking.server;
 
 
-import org.example.duanparking.common.ParkingInterface;
-
-import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.rmi.server.UnicastRemoteObject;
 
 
 public class ParkingServer  {

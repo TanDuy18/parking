@@ -26,14 +26,14 @@
             </GridPane>
          </content>
       </ScrollPane>
-      <AnchorPane layoutX="663.0" layoutY="836.0" prefHeight="62.0" prefWidth="542.0" style="-fx-background-color: #C2A68C; -fx-background-radius: 10px;">
+      <AnchorPane layoutX="663.0" layoutY="839.0" prefHeight="62.0" prefWidth="542.0" style="-fx-background-color: #C2A68C; -fx-background-radius: 10px;">
          <children>
             <Button layoutX="14.0" layoutY="20.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="86.0" text="Dashboard" />
             <Button layoutX="228.0" layoutY="20.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="86.0" text="Lịch sử" />
             <Button layoutX="117.0" layoutY="20.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="86.0" text="Button" />
          </children>
       </AnchorPane>
-      <AnchorPane fx:id="outPane" layoutX="664.0" layoutY="562.0" prefHeight="260.0" prefWidth="647.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;">
+      <AnchorPane fx:id="outPane" layoutX="664.0" layoutY="562.0" prefHeight="267.0" prefWidth="647.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;">
          <children>
             <Label layoutX="15.0" layoutY="22.0" prefHeight="21.0" prefWidth="110.0" text="Biển số xe        :">
                <font>
@@ -47,39 +47,39 @@
                <font>
                   <Font name="Arial" size="17.0" />
                </font></TextField>
-            <Label layoutX="14.0" layoutY="76.0" prefHeight="21.0" prefWidth="110.0" text="Thời gian đến  :">
+            <Label layoutX="14.0" layoutY="71.0" prefHeight="21.0" prefWidth="110.0" text="Thời gian đến  :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="arrivalTimeField0" layoutX="126.0" layoutY="70.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
+            <TextField fx:id="arrivalTimeField0" layoutX="126.0" layoutY="65.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <font>
                   <Font name="Arial" size="17.0" />
                </font></TextField>
-            <Label layoutX="364.0" layoutY="23.0" prefHeight="20.0" prefWidth="78.0" text="Vé xe        :">
+            <Label layoutX="364.0" layoutY="70.0" prefHeight="20.0" prefWidth="78.0" text="Vé xe        :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="ticketField0" layoutX="439.0" layoutY="18.0" prefHeight="36.0" prefWidth="176.0" styleClass="transparent-textfield" stylesheets="@style.css">
+            <TextField fx:id="ticketField0" layoutX="439.0" layoutY="65.0" prefHeight="36.0" prefWidth="176.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <font>
                   <Font name="Arial" size="17.0" />
                </font></TextField>
-            <Label layoutX="364.0" layoutY="69.0" prefHeight="21.0" prefWidth="78.0" text="Vị trí         :">
+            <Label layoutX="364.0" layoutY="25.0" prefHeight="21.0" prefWidth="78.0" text="Vị trí         :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="placeField0" layoutX="439.0" layoutY="65.0" prefHeight="34.0" prefWidth="104.0" styleClass="transparent-textfield" stylesheets="@style.css">
+            <TextField fx:id="placeField0" layoutX="439.0" layoutY="21.0" prefHeight="34.0" prefWidth="104.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <font>
                   <Font name="Arial" size="17.0" />
                </font></TextField>
-            <Label layoutX="14.0" layoutY="196.0" prefHeight="21.0" prefWidth="110.0" text="Giá tiền             :">
+            <Label layoutX="14.0" layoutY="221.0" prefHeight="21.0" prefWidth="110.0" text="Giá tiền             :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="priceField0" layoutX="126.0" layoutY="190.0" prefHeight="36.0" prefWidth="210.0" stylesheets="@style.css">
+            <TextField fx:id="priceField0" layoutX="126.0" layoutY="215.0" prefHeight="36.0" prefWidth="210.0" stylesheets="@style.css">
                <opaqueInsets>
                   <Insets />
                </opaqueInsets>
@@ -87,12 +87,12 @@
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
-            <Label layoutX="13.0" layoutY="135.0" prefHeight="21.0" prefWidth="110.0" text="Thời gian về     :">
+            <Label layoutX="13.0" layoutY="119.0" prefHeight="21.0" prefWidth="110.0" text="Thời gian về     :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="leaveTimeField0" layoutX="126.0" layoutY="129.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
+            <TextField fx:id="leaveTimeField0" layoutX="126.0" layoutY="113.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <font>
                   <Font name="Arial" size="17.0" />
                </font>
@@ -107,6 +107,16 @@
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
+            <Label layoutX="13.0" layoutY="167.0" prefHeight="21.0" prefWidth="110.0" text="Thông tin          :">
+               <font>
+                  <Font name="Calibri" size="17.0" />
+               </font>
+            </Label>
+            <TextField fx:id="InforField0" layoutX="126.0" layoutY="161.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
+               <font>
+                  <Font name="Arial" size="17.0" />
+               </font>
+            </TextField>
          </children>
       </AnchorPane>
       <AnchorPane layoutX="7.0" layoutY="540.0" prefHeight="370.0" prefWidth="654.0">
@@ -114,7 +124,7 @@
             <ImageView fx:id="cameraView" fitHeight="339.0" fitWidth="590.0" layoutX="26.0" layoutY="21.0" pickOnBounds="true" preserveRatio="true" />
          </children>
       </AnchorPane>
-      <AnchorPane fx:id="inPane" layoutX="664.0" layoutY="563.0" prefHeight="260.0" prefWidth="647.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;" visible="false">
+      <AnchorPane fx:id="inPane" layoutX="664.0" layoutY="563.0" prefHeight="267.0" prefWidth="647.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;" visible="false">
          <children>
             <Label layoutX="16.0" layoutY="29.0" prefHeight="21.0" prefWidth="110.0" text="Biển số xe        :">
                <font>
@@ -129,45 +139,55 @@
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
-            <Label layoutX="15.0" layoutY="92.0" prefHeight="21.0" prefWidth="110.0" text="Thời gian đến  :">
+            <Label layoutX="14.0" layoutY="78.0" prefHeight="21.0" prefWidth="110.0" text="Thời gian đến  :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="arrivalTimeField1" layoutX="127.0" layoutY="86.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
+            <TextField fx:id="arrivalTimeField1" layoutX="126.0" layoutY="72.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <font>
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
-            <Label layoutX="19.0" layoutY="209.0" prefHeight="21.0" prefWidth="110.0" text="Vé xe                :">
+            <Label layoutX="19.0" layoutY="225.0" prefHeight="21.0" prefWidth="110.0" text="Vé xe                :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="ticketField1" layoutX="127.0" layoutY="203.0" prefHeight="36.0" prefWidth="176.0" styleClass="transparent-textfield" stylesheets="@style.css">
+            <TextField fx:id="ticketField1" layoutX="127.0" layoutY="219.0" prefHeight="36.0" prefWidth="176.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <font>
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
-            <Label layoutX="19.0" layoutY="148.0" prefHeight="21.0" prefWidth="110.0" text="Vị trí                 :">
+            <Label layoutX="382.0" layoutY="25.0" prefHeight="21.0" prefWidth="60.0" text="Vị trí    :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="placeField1" layoutX="127.0" layoutY="143.0" prefHeight="34.0" prefWidth="104.0" styleClass="transparent-textfield" stylesheets="@style.css">
+            <TextField fx:id="placeField1" layoutX="439.0" layoutY="20.0" prefHeight="34.0" prefWidth="104.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <font>
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
-            <Label layoutX="367.0" layoutY="33.0" prefHeight="21.0" prefWidth="52.0" text="Tên     :">
+            <Label layoutX="17.0" layoutY="180.0" prefHeight="21.0" prefWidth="110.0" text="Tên                   :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <TextField fx:id="ownerField1" layoutX="419.0" layoutY="27.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
+            <TextField fx:id="ownerField1" layoutX="122.0" layoutY="174.0" prefHeight="36.0" prefWidth="210.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <opaqueInsets>
                   <Insets />
                </opaqueInsets>
+               <font>
+                  <Font name="Arial" size="17.0" />
+               </font>
+            </TextField>
+            <Label layoutX="14.0" layoutY="129.0" prefHeight="21.0" prefWidth="110.0" text="Thông tin         :">
+               <font>
+                  <Font name="Calibri" size="17.0" />
+               </font>
+            </Label>
+            <TextField fx:id="InforField1" layoutX="122.0" layoutY="124.0" prefHeight="34.0" prefWidth="287.0" styleClass="transparent-textfield" stylesheets="@style.css">
                <font>
                   <Font name="Arial" size="17.0" />
                </font>

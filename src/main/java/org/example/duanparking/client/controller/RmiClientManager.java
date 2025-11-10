@@ -5,12 +5,13 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 import org.example.duanparking.client.ClientCallbackImpl;
-import org.example.duanparking.common.*;
+import org.example.duanparking.common.remote.ClientCallback;
+import org.example.duanparking.common.remote.ParkingInterface;
 
 public class RmiClientManager {
     private static RmiClientManager instance;
-    private ParkingInterface parkingInterface; 
-    private ClientCallback clientCallback; 
+    private ParkingInterface parkingInterface;
+    private ClientCallback clientCallback;
 
     public RmiClientManager() {}
 
@@ -25,7 +26,7 @@ public class RmiClientManager {
         try{
             Registry registry = LocateRegistry.getRegistry("localhost",1099);
             parkingInterface = (ParkingInterface) registry.lookup("ParkingService"); 
-            clientCallback = new ClientCallbackImpl(parkingInterface, null); 
+            clientCallback = new ClientCallbackImpl();
         }catch(Exception e ){
             e.printStackTrace();
         } 

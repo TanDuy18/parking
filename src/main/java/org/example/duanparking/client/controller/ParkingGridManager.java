@@ -6,19 +6,29 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.RowConstraints;
-import org.example.duanparking.model.ParkingSlot;
+import org.example.duanparking.common.dto.ParkingSlotDTO;
+import org.example.duanparking.server.dao.ParkingSlotEntity;
 import org.example.duanparking.model.SlotStatus;
 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ParkingGridManager {
     private GridPane parkingGrid;
-    private ArrayList<ParkingSlot> slots;
+    private List<ParkingSlotDTO> slots;
 
-    public ParkingGridManager(GridPane parkingGrid, ArrayList<ParkingSlot> slots) {
+    public ParkingGridManager(GridPane parkingGrid) {
         this.parkingGrid = parkingGrid;
-        this.slots = slots;
+    }
+
+    public void updateGrid(List<ParkingSlotDTO> slots) {
+        this.slots = (slots != null) ? new ArrayList<>(slots) : new ArrayList<>();
+        try {
+            parkingSlotGrid();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void parkingSlotGrid() throws RemoteException {
@@ -28,9 +38,9 @@ public class ParkingGridManager {
 
         // Tính số hàng và cột tối đa từ slots
         int maxRows = 0, maxCols = 0;
-        for (ParkingSlot slot : slots) {
-            maxRows = Math.max(maxRows, slot.getRowIndex() + 1);
-            maxCols = Math.max(maxCols, slot.getColumnIndex() + 1);
+        for (ParkingSlotDTO slot : slots) {
+            maxRows = Math.max(maxRows, slot.getRow() + 1);
+            maxCols = Math.max(maxCols, slot.getCol() + 1);
         }
 
         // Thiết lập kích thước cột/hàng
@@ -43,7 +53,7 @@ public class ParkingGridManager {
 
 
         // Thêm slots vào GridPane
-        for (ParkingSlot slot : slots) {
+        for (ParkingSlotDTO slot : slots) {
             AnchorPane slotPane = new AnchorPane();
             slotPane.setId("slot" + slot.getSpotId());
             slotPane.setPrefSize(100, 100);
@@ -57,13 +67,13 @@ public class ParkingGridManager {
 
 
             // Thêm vào GridPane theo rowIndex, colIndex
-            parkingGrid.add(slotPane, slot.getColumnIndex(), slot.getRowIndex());
+            parkingGrid.add(slotPane, slot.getCol(), slot.getRow());
         }
         updateSlotUI();
     }
 
     public void updateSlotUI() throws RemoteException {
-        for (ParkingSlot slot : slots) {
+        for (ParkingSlotDTO slot : slots) {
             boolean isBooked = false;
             switch (SlotStatus.valueOf(slot.getStatus().toUpperCase())) {
                 case OCCUPIED -> isBooked = true;
@@ -76,10 +86,10 @@ public class ParkingGridManager {
             }
         }
     }
-    public void updateSingleSlot(String slotId, String status) {
-        Node node = parkingGrid.lookup("#slot" + slotId);
+    public void updateSingleSlot(ParkingSlotDTO slot) throws RemoteException {
+        Node node = parkingGrid.lookup("#slot" + slot.getSpotId());
         if (node instanceof AnchorPane slotPane) {
-            String color = switch (status.toUpperCase()) {
+            String color = switch (slot.getStatus().toUpperCase()) {
                 case "OCCUPIED" -> "red";
                 case "RESERVED" -> "yellow";
                 case "FREE" -> "green";

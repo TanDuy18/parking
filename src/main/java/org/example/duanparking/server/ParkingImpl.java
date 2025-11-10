@@ -1,9 +1,10 @@
 package org.example.duanparking.server;
 
-import org.example.duanparking.common.ClientCallback;
-import org.example.duanparking.common.ParkingInterface;
+import org.example.duanparking.common.dto.ParkingSlotDTO;
+import org.example.duanparking.common.remote.ClientCallback;
+import org.example.duanparking.common.remote.ParkingInterface;
 import org.example.duanparking.model.DBManager;
-import org.example.duanparking.model.ParkingSlot;
+import org.example.duanparking.server.dao.ParkingSlotEntity;
 import org.example.duanparking.model.SlotStatus;
 
 import java.rmi.RemoteException;
@@ -14,9 +15,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface, Unreferenced {
@@ -39,26 +40,44 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     }
 
     @Override
-    public ArrayList<ParkingSlot> getSlot() throws RemoteException {
-        ArrayList<ParkingSlot> parkingSlots = new ArrayList<>();
-        String sql = "SELECT spot_id, status,row_index,col_index FROM parkingslot";
+    public ArrayList<ParkingSlotDTO> getAllSlots() throws RemoteException {
+        ArrayList<ParkingSlotDTO> Entities = new ArrayList<>();
+        String sql = """
+                SELECT 
+                    ps.spot_id, ps.status, ps.row_index, ps.col_index,
+                    ph.vehicle_id, ph.entry_time, ph.fee,
+                    v.plate_number, v.owner_name
+                FROM parkingslot ps
+                LEFT JOIN ParkingHistory ph 
+                    ON ps.spot_id = ph.spot_id 
+                    AND ph.status = 'ACTIVE'
+                LEFT JOIN Vehicle v ON ph.vehicle_id = v.vehicle_id
+                ORDER BY ps.row_index, ps.col_index
+        """;
         try (Connection conn = DBManager.getConnection();) {
             conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        String spotId = rs.getString("spot_id");
-                        String status = rs.getString("status");
-                        int rowIndex = rs.getInt("row_index");
-                        int colIndex = rs.getInt("col_index");
+            try (PreparedStatement ps = conn.prepareStatement(sql);
+                    ResultSet rs = ps.executeQuery()) {
 
-                        ParkingSlot slot = new ParkingSlot(spotId, status, rowIndex, colIndex);
-                        System.out.println(slot);
-                        parkingSlots.add(slot);
+                    while (rs.next()) {
+                        ParkingSlotDTO slotDTO = new ParkingSlotDTO();
+                        slotDTO.setSpotId(rs.getString("spot_id"));
+                        slotDTO.setStatus(rs.getString("status"));
+                        slotDTO.setRow(rs.getRow());
+                        slotDTO.setCol(rs.getRow());
+
+                        if (rs.getObject("vehicle_id") != null) {
+                            slotDTO.setPlateNumber(rs.getString("plate_number"));
+                            slotDTO.setOwnerName(rs.getString("owner_name"));
+                            Timestamp entryTime = rs.getTimestamp("entry_time");
+                            slotDTO.setEntryTime(entryTime != null ? entryTime.toLocalDateTime().toString() : null);
+                            slotDTO.setFee(rs.getDouble("fee"));
+                        } else {
+                            return null;
+                        }
+
+                        Entities.add(slotDTO);
                     }
-                }catch (SQLException e) {
-                    e.printStackTrace();
-                };
             }catch (SQLException e) {
                 e.printStackTrace();
                 conn.rollback();
@@ -66,7 +85,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
-        return parkingSlots;
+        return Entities;
     }
 
     @Override
@@ -103,14 +122,14 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 conn.commit();
                 System.out.println("Cập nhật trạng thái slot " + spotId + " thành công!");
 
-                // Gửi callback cho các client sau khi commit
-                for (ClientCallback client : clients) {
-                    try {
-                        client.onSlotUpdated(spotId, status);
-                    } catch (RemoteException e) {
-                        System.err.println("Lỗi gửi callback: " + e.getMessage());
-                    }
-                }
+//                // Gửi callback cho các client sau khi commit
+//                for (ClientCallback client : clients) {
+//                    try {
+//                        client.onSlotUpdated(spotId, status);
+//                    } catch (RemoteException e) {
+//                        System.err.println("Lỗi gửi callback: " + e.getMessage());
+//                    }
+//                }
 
             } catch (Exception e) {
                 conn.rollback(); // rollback nếu bất kỳ lỗi nào xảy ra
@@ -123,8 +142,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     }
 
     @Override
-    public ParkingSlot getUpdatedSlot(String spotId) {
-        ParkingSlot slotUser = null;
+    public ParkingSlotEntity getUpdatedSlot(String spotId) {
+        ParkingSlotEntity slotUser = null;
         String sql = "SELECT spot_id, status, row_index, col_index FROM parkingslot where spot_id = ?";
         try (Connection conn = DBManager.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql);) {
@@ -137,7 +156,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 int row = rs.getInt("row_index");
                 int col = rs.getInt("col_index");
 
-                slotUser = new ParkingSlot(spot_Id, status, row, col);
+                slotUser = new ParkingSlotEntity(spot_Id, status, row, col);
 
                 return slotUser;
             }
@@ -148,8 +167,9 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     };
 
     @Override
-    public void registerClient(ClientCallback client) {
+    public void registerClient(ClientCallback client) throws RemoteException {
         clients.add(client);
+        client.syncSlots(getAllSlots());
         System.out.println("Một client đã đăng ký");
     };
 
@@ -207,6 +227,16 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
     @Override
     public void ping() throws RemoteException {
+
+    }
+
+    @Override
+    public void syncSlots(List<ParkingSlotDTO> slots) throws RemoteException {
+
+    }
+
+    @Override
+    public void onSlotUpdated(ParkingSlotDTO slot) throws RemoteException {
 
     }
 

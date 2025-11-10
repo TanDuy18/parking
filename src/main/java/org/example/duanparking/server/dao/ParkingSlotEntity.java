@@ -1,16 +1,14 @@
-package org.example.duanparking.model;
+package org.example.duanparking.server.dao;
 
-import java.io.Serializable;
+public class ParkingSlotEntity {
 
-public class ParkingSlot implements Serializable {
-    private static final long serialVersionUID = 1L; // Khuyến nghị
 
     private String spotId;
     private String status;
     private int rowIndex;
     private int columnIndex;
 
-    public ParkingSlot(String spotId, String status, int rowIndex, int columnIndex) {
+    public ParkingSlotEntity(String spotId, String status, int rowIndex, int columnIndex) {
         this.spotId = spotId;
         this.status = status;
         this.rowIndex = rowIndex;
