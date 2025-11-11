@@ -101,7 +101,10 @@ public class DasboardController implements Initializable {
             clientCallback = manager.getClientCallBack();
 
             List<ParkingSlotDTO> slots = parkingInterface.getAllSlots();
-
+            for (ParkingSlotDTO slot : slots) {
+                System.out.println(slot.getCol() +" "+ slot.getRow());
+            }
+            System.out.println(slots);
             gridManager = new ParkingGridManager(parkingGrid);
             gridManager.updateGrid(slots);
             //gridManager.updateGrid(slots);

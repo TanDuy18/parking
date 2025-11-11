@@ -63,8 +63,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                         ParkingSlotDTO slotDTO = new ParkingSlotDTO();
                         slotDTO.setSpotId(rs.getString("spot_id"));
                         slotDTO.setStatus(rs.getString("status"));
-                        slotDTO.setRow(rs.getRow());
-                        slotDTO.setCol(rs.getRow());
+                        slotDTO.setRow(rs.getInt("row_index"));
+                        slotDTO.setCol(rs.getInt("col_index"));
 
                         if (rs.getObject("vehicle_id") != null) {
                             slotDTO.setPlateNumber(rs.getString("plate_number"));
@@ -72,10 +72,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                             Timestamp entryTime = rs.getTimestamp("entry_time");
                             slotDTO.setEntryTime(entryTime != null ? entryTime.toLocalDateTime().toString() : null);
                             slotDTO.setFee(rs.getDouble("fee"));
-                        } else {
-                            return null;
                         }
-
                         Entities.add(slotDTO);
                     }
             }catch (SQLException e) {
