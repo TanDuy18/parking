@@ -5,6 +5,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -46,9 +47,10 @@ public class DasboardController implements Initializable {
     @FXML private TextField plateField1;
     @FXML private TextField placeField1;
     @FXML private TextField arrivalTimeField1;
-    @FXML private TextField ticketField1;
+    @FXML private TextField brandField1;
     @FXML private TextField ownerField1;
-    @FXML private TextField InforField1;
+    @FXML private ComboBox<String> InforField1;
+
 
     @FXML private TextField InforField0;
     @FXML private TextField arrivalTimeField0;
@@ -56,7 +58,7 @@ public class DasboardController implements Initializable {
     @FXML private TextField placeField0;
     @FXML private TextField plateField0;
     @FXML private TextField priceField0;
-    @FXML private TextField ticketField0;
+    @FXML private TextField brandField0;
     @FXML private TextField ownerField0;
 
     private ParkingInterface parkingInterface;
@@ -64,6 +66,8 @@ public class DasboardController implements Initializable {
     private static RmiClientManager manager;
     private VideoCapture capture;
     private boolean cameraActive = true;
+    private DetectPlate detectPlate;
+    private int frameCount = 0;
 
     int checkInOut = 0;
 
@@ -92,7 +96,6 @@ public class DasboardController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         OpenCV.loadLocally();
         capture = new VideoCapture(0);
-
         try {
             manager = new RmiClientManager();
             manager.connect();
@@ -116,30 +119,41 @@ public class DasboardController implements Initializable {
             throw new RuntimeException(e);
         }
         Thread captureThread = new Thread(() -> {
-            Mat frame = new Mat(); // Tạo ma trận để lưu frame chứa dữ liệu cũ
+            Mat frame = new Mat();
             while (cameraActive && capture.isOpened()) {
-                if (capture.grab()) { // Dùng grab và retrieve
+                if (capture.grab()) {
                     capture.retrieve(frame);
-                    Core.flip(frame, frame, 1);
+                    Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2RGB);
+
                     if (!frame.empty()) {
                         Mat resized = new Mat();
-                        Imgproc.resize(frame, resized, new Size(590, 339), 0, 0, Imgproc.INTER_AREA);
+
+                        Imgproc.resize(frame, resized, new Size(640, 480), 0, 0, Imgproc.INTER_AREA);
+                        Imgproc.cvtColor(resized, resized, Imgproc.COLOR_BGR2RGB);
+
+                        // Imgproc.flip(resized, resized, 1);
+
+                        frameCount++;
+                        if (frameCount % 10 == 0) {
+
+                        }
                         Image fxImage = matToImage(resized);
                         Platform.runLater(() -> cameraView.setImage(fxImage));
-                        resized.release(); // Giải phóng memory
+                        resized.release();
                     }
                 }
                 try {
-                    Thread.sleep(30);
+                    Thread.sleep(100);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 }
             }
         });
-        captureThread.setDaemon(true); //
+        captureThread.setDaemon(true);
         captureThread.start();
 
+        InforField1.getItems().addAll("CAR", "MOTORBIKE", "TRUCK", "BICYCLE");
         inBtn.setOnAction(event -> {
             inBtn.setDisable(true);
             outBtn.setDisable(false);
@@ -168,16 +182,16 @@ public class DasboardController implements Initializable {
 
                     arrivalTimeField1.setText(current.format(dateTimeFormatter));
 
-                    String plateName1 = plateField1.getText();
+                    String plateName1 = plateField1.getText().trim();
                     String owner1 = ownerField1.getText();
-                    String rentPlace1 = placeField1.getText();
-                    String ticket = ticketField1.getText();
-                    System.out.println(plateName1 + " " + formatted + " " + rentPlace1);
+                    String place = placeField1.getText();
+                    String brand = brandField1.getText();
+                    String infor = InforField1.getSelectionModel().getSelectedItem();
 
                     // parkingInterface.updateSlotStatus(rentPlace1, "OCCUPIED", plateName1,
                     // owner1,formatted);
 
-                    if (plateName1 == null || plateName1.isEmpty() || rentPlace1 == null || rentPlace1.isEmpty()) {
+                    if (plateName1.isEmpty() || place.isEmpty()) {
                         Platform.runLater(() -> openNotificationScreen("Vui lòng nhập đủ"));
                         return;
                     }
@@ -185,7 +199,7 @@ public class DasboardController implements Initializable {
                     new Thread(() -> {
                         try {
                             boolean exists = parkingInterface.checkId(plateName1);
-                            boolean exists2 = parkingInterface.checkPlace(rentPlace1);
+                            boolean exists2 = parkingInterface.checkPlace(place);
                             if(exists2) {
                                 Platform.runLater(() -> openNotificationScreen("Vị trí này đã được thuê rồi"));
                                 return; 
@@ -194,7 +208,7 @@ public class DasboardController implements Initializable {
                                 Platform.runLater(() -> openNotificationScreen("Biển số đã trong bãi đỗ!"));
                             } else {
                                     try {
-                                        parkingInterface.updateSlotStatus(rentPlace1, "OCCUPIED", plateName1, owner1, formatted);
+                                        parkingInterface.updateSlotStatus(place, "OCCUPIED", plateName1, owner1, formatted, brand, infor);
                                     } catch (RemoteException e) {
                                         e.printStackTrace();
                                     }

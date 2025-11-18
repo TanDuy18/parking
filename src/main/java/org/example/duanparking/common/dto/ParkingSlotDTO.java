@@ -11,6 +11,7 @@ public class ParkingSlotDTO implements Serializable {
     private String ownerName;
     private String entryTime;
     private double fee;
+    private String areaType; 
     private int row, col;
 
     public String getSpotId() {return spotId;}
@@ -61,13 +62,18 @@ public class ParkingSlotDTO implements Serializable {
     public void setCol(int col) {
         this.col = col;
     }
-
+    public void setAreaType(String type){
+        this.areaType = type;
+    }
+    public String getAreaType(){
+        return areaType;
+    }
     public ParkingSlotDTO() {}
 
     // Constructor đầy đủ
     public ParkingSlotDTO(String spotId, String status, String plateNumber,
                           String ownerName, String entryTime, double fee,
-                          int row, int col, String parkingLotId) {
+                          int row, int col, String area_type) {
         this.spotId = spotId;
         this.status = status;
         this.plateNumber = plateNumber;
@@ -76,5 +82,6 @@ public class ParkingSlotDTO implements Serializable {
         this.fee = fee;
         this.row = row;
         this.col = col;
+        this.areaType = area_type;
     }
 }

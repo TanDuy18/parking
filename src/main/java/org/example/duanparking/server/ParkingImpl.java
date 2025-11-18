@@ -44,7 +44,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         ArrayList<ParkingSlotDTO> Entities = new ArrayList<>();
         String sql = """
                 SELECT 
-                    ps.spot_id, ps.status, ps.row_index, ps.col_index,
+                    ps.spot_id, ps.status, ps.row_index, ps.col_index,ps.area_type,
                     ph.vehicle_id, ph.entry_time, ph.fee,
                     v.plate_number, v.owner_name
                 FROM parkingslot ps
@@ -65,6 +65,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                         slotDTO.setStatus(rs.getString("status"));
                         slotDTO.setRow(rs.getInt("row_index"));
                         slotDTO.setCol(rs.getInt("col_index"));
+                        slotDTO.setAreaType(rs.getString("area_type"));
 
                         if (rs.getObject("vehicle_id") != null) {
                             slotDTO.setPlateNumber(rs.getString("plate_number"));
@@ -86,53 +87,77 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     }
 
     @Override
-    public void updateSlotStatus(String spotId, String status, String plateName, String owner, String arriveTime)
+    public void updateSlotStatus(String spotId, String status, String plateName, String owner, String arriveTime , String brand, String infor)
             throws RemoteException {
+                int vehicleId;
         try (Connection conn = DBManager.getConnection()) {
             conn.setAutoCommit(false);
+            try (PreparedStatement lock = conn.prepareStatement("SELECT spot_id FROM parkingslot WHERE spot_id = ? FOR UPDATE"); ){
+                lock.setString(1, spotId);
+                ResultSet rs = lock.executeQuery();
+                while (rs.next()) {
+                    try(PreparedStatement updateSlot = conn.prepareStatement(
+                            "UPDATE parkingslot SET status='OCCUPIED' WHERE spot_id=? AND status = 'FREE'");){
+                        updateSlot.setString(1, spotId);
+                        int updatedRows = updateSlot.executeUpdate();
+                        if (updatedRows == 0) {
+                            throw new IllegalStateException("Slot đã bị người khác chiếm hoặc không còn FREE");
+                        }else {
+                            try(PreparedStatement check =  conn.prepareStatement(
+                                    "SELECT vehicle_id FROM vehicle WHERE plate_number = ?"
+                            );){
+                                check.setString(1, plateName);
+                                ResultSet rsCheck = check.executeQuery();
+                            
+                                if (rs.next()) {
+                                    vehicleId = rs.getInt("vehicle_id"); // xe đã có
+                                } else {
+                                    // xe chưa có → insert mới
+                                    String insert = "INSERT INTO Vehicle (plate_number, owner_name, vehicle_type, brand) VALUES (?, ?, ?, ?)";
+                                    PreparedStatement insertPs = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS);
+                                    insertPs.setString(1, plateName);
+                                    insertPs.setString(2, owner);
+                                    insertPs.setString(3, infor);
+                                    insertPs.setString(4, brand);
 
-            String sql = "UPDATE parkingslot SET status = ? WHERE spot_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, status);
-                ps.setString(2, spotId);
-                int rowAffected = ps.executeUpdate();
+                                    insertPs.executeUpdate();
+                                    ResultSet keys = insertPs.getGeneratedKeys();
+                                    keys.next();
+                                    vehicleId = keys.getInt(1);
+                                }
+                            }
+                        }
+                        try (PreparedStatement insertHistory = conn.prepareStatement(
+                                "INSERT INTO ParkingHistory (spot_id, vehicle_id, entry_time, status) VALUES (?, ?, ?, 'ACTIVE')")) {
 
-                if (rowAffected == 0) {
-                    throw new SQLException("Không tìm thấy spot_id: " + spotId);
-                }
+                            insertHistory.setString(1, spotId);
+                            insertHistory.setInt(2, vehicleId);
+                            insertHistory.setString(3, arriveTime); 
 
-                // Nếu có xe vào (OCCUPIED) thì ghi thêm vào bảng transaction
-                if ("OCCUPIED".equalsIgnoreCase(status)) {
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                    LocalDateTime dateTime = LocalDateTime.parse(arriveTime, formatter);
+                            insertHistory.executeUpdate();
+                        }
+                        conn.commit();
 
-                    String insertTransactionSql = "INSERT INTO parkingtransaction (spot_id, plate_number, entry_time, owner_name) VALUES (?, ?, ?, ?)";
-                    try (PreparedStatement psTransaction = conn.prepareStatement(insertTransactionSql)) {
-                        psTransaction.setString(1, spotId);
-                        psTransaction.setString(2, plateName);
-                        psTransaction.setTimestamp(3, Timestamp.valueOf(dateTime));
-                        psTransaction.setString(4, owner);
-                        psTransaction.executeUpdate();
+                        for (ClientCallback client : clients) {
+                            try {
+                                ParkingSlotDTO dto = new ParkingSlotDTO();
+                                dto.setSpotId(spotId);
+                                dto.setStatus(status);
+
+                                client.onSlotUpdated(dto);
+                            } catch (RemoteException e) {
+                                System.err.println("Lỗi gửi callback: " + e.getMessage());
+                            }
+                        }
+                    }catch (SQLException e) {
+                        e.printStackTrace();
+                        conn.rollback();
                     }
                 }
-
-                conn.commit();
-                System.out.println("Cập nhật trạng thái slot " + spotId + " thành công!");
-
-//                // Gửi callback cho các client sau khi commit
-//                for (ClientCallback client : clients) {
-//                    try {
-//                        client.onSlotUpdated(spotId, status);
-//                    } catch (RemoteException e) {
-//                        System.err.println("Lỗi gửi callback: " + e.getMessage());
-//                    }
-//                }
-
-            } catch (Exception e) {
-                conn.rollback(); // rollback nếu bất kỳ lỗi nào xảy ra
-                throw e; // ném lỗi để hiển thị stacktrace bên ngoài
+            }catch (SQLException e) {
+                e.printStackTrace();
+                conn.rollback();
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -175,52 +200,60 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         System.out.println("Client chết đột ngột! Dọn dẹp tự động: " + this);
     }
 
-    @Override
+   @Override
     public boolean checkId(String plateName) throws RemoteException {
-        String sql = "SELECT plate_number, entry_time, exit_time, status FROM parkingtransaction WHERE plate_number = ? ORDER BY entry_time DESC LIMIT 1";
+
+        String sql =
+            "SELECT ph.entry_time, ph.exit_time, ph.status " +
+            "FROM parkinghistory ph " +
+            "JOIN vehicle v ON v.vehicle_id = ph.vehicle_id " +
+            "WHERE v.plate_number = ? " +
+            "ORDER BY ph.entry_time DESC " +
+            "LIMIT 1";
+
         try (Connection conn = DBManager.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql);) {
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, plateName);
             ResultSet rs = ps.executeQuery();
+
             if (rs.next()) {
                 String exit_time = rs.getString("exit_time");
                 String status = rs.getString("status");
 
-                if (exit_time == null || status.equalsIgnoreCase("ACTIVE")) {
-                    return true;
-                }
-            } else {
-                return false;
+                return exit_time == null || status.equalsIgnoreCase("ACTIVE");
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
         return false;
     }
 
-    @Override
+
+   @Override
     public boolean checkPlace(String placeName) throws RemoteException {
-        try (Connection conn = DBManager.getConnection()) {
-            String sql = "SELECT status FROM parkingslot WHERE spot_id = ?";
-            PreparedStatement ps = conn.prepareStatement(sql);
+        String sql = "SELECT status FROM parkingslot WHERE spot_id = ?";
+
+        try (Connection conn = DBManager.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, placeName);
 
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 String status = rs.getString("status");
-                SlotStatus type = SlotStatus.valueOf(status.toUpperCase());
-                switch (type) {
-                    case OCCUPIED, REVERSED:
-                        return true;
-                    default:
-                        return false;
-                }
+
+                return status.equals("OCCUPIED") || status.equals("RESERVED");
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         return false;
     }
+
 
     @Override
     public void ping() throws RemoteException {

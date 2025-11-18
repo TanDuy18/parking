@@ -5,6 +5,8 @@ module org.example.duanparking {
     requires opencv;
     requires java.rmi;
     requires java.sql;
+    requires tess4j;
+
 
     exports org.example.duanparking;
     exports org.example.duanparking.model to java.rmi;
