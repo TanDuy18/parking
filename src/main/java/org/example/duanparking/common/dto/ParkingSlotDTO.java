@@ -5,14 +5,19 @@ import java.io.Serializable;
 public class ParkingSlotDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    private int transaction_id;
     private String spotId;
     private String status;
     private String plateNumber;
+    private String owner;
     private String ownerName;
     private String entryTime;
+    private String exitTime;
     private double fee;
-    private String areaType; 
+    private String areaType;
+    private String brand;
     private int row, col;
+    private String vehicleType;
 
     public String getSpotId() {return spotId;}
     public void setSpotId(String spotId) {this.spotId = spotId;}
@@ -68,6 +73,47 @@ public class ParkingSlotDTO implements Serializable {
     public String getAreaType(){
         return areaType;
     }
+
+    public int getTransaction_id() {
+        return transaction_id;
+    }
+
+    public void setTransaction_id(int transaction_id) {
+        this.transaction_id = transaction_id;
+    }
+
+    public String getBrand() {
+        return brand;
+    }
+
+    public void setBrand(String brand) {
+        this.brand = brand;
+    }
+
+    public String getExitTime() {
+        return exitTime;
+    }
+
+    public void setExitTime(String exitTime) {
+        this.exitTime = exitTime;
+    }
+
+    public String getVehicleType() {
+        return vehicleType;
+    }
+
+    public void setVehicleType(String vehicleType) {
+        this.vehicleType = vehicleType;
+    }
+
+    public String getOwner() {
+        return owner;
+    }
+
+    public void setOwner(String owner) {
+        this.owner = owner;
+    }
+
     public ParkingSlotDTO() {}
 
     // Constructor đầy đủ
@@ -83,5 +129,16 @@ public class ParkingSlotDTO implements Serializable {
         this.row = row;
         this.col = col;
         this.areaType = area_type;
+    }
+    public ParkingSlotDTO(int transaction_id, String owner, String brand, String plateNumber,String spotId, String vehicleType, String entryTime, String exitTime, double fee) {
+        this.transaction_id = transaction_id;
+        this.owner = owner;
+        this.brand = brand;
+        this.plateNumber = plateNumber;
+        this.spotId = spotId;
+        this.vehicleType = vehicleType;
+        this.entryTime = entryTime;
+        this.exitTime = exitTime;
+        this.fee = fee;
     }
 }

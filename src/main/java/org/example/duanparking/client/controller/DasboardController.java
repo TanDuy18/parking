@@ -1,6 +1,8 @@
 package org.example.duanparking.client.controller;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Alert;
@@ -11,6 +13,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
+import javafx.util.Duration;
 import nu.pattern.OpenCV;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.remote.ClientCallback;
@@ -27,10 +30,12 @@ import org.opencv.videoio.VideoCapture;
 import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.rmi.RemoteException;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.ResourceBundle;
 
 
@@ -51,7 +56,7 @@ public class DasboardController implements Initializable {
     @FXML private TextField ownerField1;
     @FXML private ComboBox<String> InforField1;
 
-
+    @FXML private TextField transaction_id_Field0; 
     @FXML private TextField InforField0;
     @FXML private TextField arrivalTimeField0;
     @FXML private TextField leaveTimeField0;
@@ -68,6 +73,10 @@ public class DasboardController implements Initializable {
     private boolean cameraActive = true;
     private DetectPlate detectPlate;
     private int frameCount = 0;
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private PauseTransition debounce = new PauseTransition(Duration.millis(500));
+    private PauseTransition debounceOut = new PauseTransition(Duration.millis(500));
 
     int checkInOut = 0;
 
@@ -91,9 +100,78 @@ public class DasboardController implements Initializable {
             e.printStackTrace();
         }
     }
+    private String formatVND(double money) {
+        NumberFormat format = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+        return format.format(money);
+    }
+    private double unformatVND(String vndText) {
+        try {
+            // Bỏ dấu cách, bỏ ký tự ₫ nếu có
+            vndText = vndText.replace("₫", "").replace(" ", "").replace(".", "");
+
+            NumberFormat format = NumberFormat.getInstance(new Locale("vi", "VN"));
+            Number number = format.parse(vndText);
+
+            return number.doubleValue();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+
+    private void checkAndSetArrivalTime() {
+        boolean filled = !plateField1.getText().trim().isEmpty() && !brandField1.getText().trim().isEmpty() && !placeField1.getText().trim().isEmpty() && InforField1.getSelectionModel().getSelectedItem() != null;
+
+        if (!filled) {arrivalTimeField1.clear();return;}
+
+        if (!arrivalTimeField1.getText().trim().isEmpty()) return;
+
+        LocalDateTime time = LocalDateTime.now();
+        arrivalTimeField1.setText(time.format(dateTimeFormatter));
+    }
+
+    private void firstRun() {
+        inPane.setVisible(true);
+        outPane.setVisible(false);
+        checkInOut = 1;
+        outBtn.setDisable(false);
+        inBtn.setDisable(true);
+    }
+
+    private void autoFillOutInfo() {
+        String plate = plateField0.getText().trim();
+        if (plate.isEmpty()) return;
+
+        new Thread(() -> {
+            try {
+                ParkingSlotDTO data = parkingInterface.getVehicleInfoForOut(plate);
+
+                if (data == null) {
+                    Platform.runLater(() -> openNotificationScreen("Không tìm thấy xe trong bãi!"));
+                    return;
+                }
+
+                Platform.runLater(() -> {
+                    transaction_id_Field0.setText(String.valueOf(data.getTransaction_id()));
+                    ownerField0.setText(data.getOwner());
+                    brandField0.setText(data.getBrand());
+                    placeField0.setText(data.getSpotId());
+                    InforField0.setText(data.getVehicleType());
+                    arrivalTimeField0.setText(data.getEntryTime());
+                    leaveTimeField0.setText(data.getExitTime());
+                    priceField0.setText(formatVND(data.getFee()));
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        firstRun();
         OpenCV.loadLocally();
         capture = new VideoCapture(0);
         try {
@@ -171,64 +249,74 @@ public class DasboardController implements Initializable {
             outPane.setVisible(true);
             checkInOut = 0;
         });
-        acceptBtn.setOnAction(event -> {
-            LocalDateTime current;
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-            switch (checkInOut) {
-                case 1:
-                    current = LocalDateTime.now();
-                    String formatted = current.format(formatter);
 
-                    arrivalTimeField1.setText(current.format(dateTimeFormatter));
+        debounce.setOnFinished(e -> checkAndSetArrivalTime());
+        plateField1.textProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
+        brandField1.textProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
+        placeField1.textProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
+        InforField1.valueProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
 
-                    String plateName1 = plateField1.getText().trim();
-                    String owner1 = ownerField1.getText();
-                    String place = placeField1.getText();
-                    String brand = brandField1.getText();
-                    String infor = InforField1.getSelectionModel().getSelectedItem();
 
-                    // parkingInterface.updateSlotStatus(rentPlace1, "OCCUPIED", plateName1,
-                    // owner1,formatted);
+        debounceOut.setOnFinished(e -> autoFillOutInfo());
+        plateField0.textProperty().addListener((obs, oldVal, newVal) -> debounceOut.playFromStart());
+    }
+    @FXML
+    void acceptHandle(ActionEvent event) {
+        LocalDateTime current;
+        switch (checkInOut) {
+            case 1:
+                current = LocalDateTime.now();
+                String formatted = current.format(formatter);
 
-                    if (plateName1.isEmpty() || place.isEmpty()) {
-                        Platform.runLater(() -> openNotificationScreen("Vui lòng nhập đủ"));
-                        return;
-                    }
+                String plateName1 = plateField1.getText().trim();
+                String owner1 = ownerField1.getText();
+                String place = placeField1.getText();
+                String brand = brandField1.getText();
+                String infor = InforField1.getSelectionModel().getSelectedItem();
 
-                    new Thread(() -> {
-                        try {
-                            boolean exists = parkingInterface.checkId(plateName1);
-                            boolean exists2 = parkingInterface.checkPlace(place);
-                            if(exists2) {
-                                Platform.runLater(() -> openNotificationScreen("Vị trí này đã được thuê rồi"));
-                                return; 
-                            }
-                            if (exists) {
-                                Platform.runLater(() -> openNotificationScreen("Biển số đã trong bãi đỗ!"));
-                            } else {
-                                    try {
-                                        parkingInterface.updateSlotStatus(place, "OCCUPIED", plateName1, owner1, formatted, brand, infor);
-                                    } catch (RemoteException e) {
-                                        e.printStackTrace();
-                                    }
-                            }
-                        } catch (RemoteException e) {
-                            e.printStackTrace();
+
+                if (plateName1.isEmpty() || place.isEmpty()) {
+                    Platform.runLater(() -> openNotificationScreen("Vui lòng nhập đủ"));
+                    return;
+                }
+
+                new Thread(() -> {
+                    try {
+                        boolean exists = parkingInterface.checkIdIn(plateName1);
+                        boolean exists2 = parkingInterface.checkPlaceIn(place);
+                        if (exists2) {
+                            Platform.runLater(() -> openNotificationScreen("Vị trí này đã được thuê rồi"));
+                            return;
                         }
-                    }).start();
-                    break;
-                case 0:
-                    current = LocalDateTime.now();
-
-                    String formatted0 = current.format(formatter);
-                    leaveTimeField0.setText(current.format(dateTimeFormatter));
-
-                    String plateName0 = plateField0.getText();
-                    String owner0 = ownerField0.getText();
-                    String rentPlace0 = placeField0.getText();
-                    System.out.println(plateName0 + " " + formatted0 + " " + rentPlace0);
-            }
-        });
+                        if (exists) {
+                            Platform.runLater(() -> openNotificationScreen("Biển số đã trong bãi đỗ!"));
+                        } else {
+                            try {
+                                parkingInterface.updateSlotStatus(place, "OCCUPIED", plateName1, owner1, formatted, brand, infor);
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+                break;
+            case 0:
+                new Thread(() -> {
+                    try {
+                        ParkingSlotDTO out = new ParkingSlotDTO(
+                                Integer.valueOf(transaction_id_Field0.getText()),
+                                ownerField0.getText(), brandField0.getText(), plateField0.getText(),
+                                placeField0.getText(), InforField0.getText(), arrivalTimeField0.getText(), 
+                                leaveTimeField0.getText(), unformatVND(priceField0.getText())
+                        );
+                        System.out.println(arrivalTimeField0.getText() + " " + leaveTimeField0.getText() + " " + unformatVND(priceField0.getText()));
+                        parkingInterface.takeVehicleOut(out);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+        }
     }
 }

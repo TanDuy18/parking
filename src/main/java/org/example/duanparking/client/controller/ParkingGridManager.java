@@ -128,16 +128,31 @@ public class ParkingGridManager {
         Platform.runLater(() -> {
             Node node = parkingGrid.lookup("#slot" + slot.getSpotId());
             if (node instanceof AnchorPane slotPane) {
-                String color = switch (slot.getStatus().toUpperCase()) {
-                    case "OCCUPIED" -> "#ff4444";
-                    case "RESERVED" -> "#ffaa00";
-                    case "FREE"     -> "#44aa44";
-                    default         -> "#cccccc";
-                };
+                String color;
+
+                if ("STANDARD".equalsIgnoreCase(slot.getAreaType())) {
+                    // màu cho STANDARD
+                    color = switch (slot.getStatus().toUpperCase()) {
+                        case "OCCUPIED" -> "#ff4444"; // đỏ
+                        case "RESERVED" -> "#ffaa00"; // vàng cam
+                        default    -> "#44aa44"; // xanh lá
+                    };
+                } else if ("PREMIUM".equalsIgnoreCase(slot.getAreaType())) {
+
+                    color = switch (slot.getStatus().toUpperCase()) {
+                        case "OCCUPIED" -> "#aa0000";
+                        case "RESERVED" -> "#ff8800";
+                        default   -> "#4488ff";
+                    };
+                } else {
+                    color = "#cccccc"; // mặc định
+                }
+
                 slotPane.setStyle("-fx-background-color: " + color + "; -fx-border-color: black;");
             }
         });
     }
+
 
     public String getStringSlot(){
         return null;

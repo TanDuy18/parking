@@ -34,7 +34,7 @@
             <Button layoutX="117.0" layoutY="20.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="86.0" text="Button" />
          </children>
       </AnchorPane>
-      <AnchorPane fx:id="outPane" layoutX="664.0" layoutY="562.0" prefHeight="267.0" prefWidth="661.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;">
+      <AnchorPane fx:id="outPane" layoutX="664.0" layoutY="562.0" prefHeight="275.0" prefWidth="661.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;">
          <children>
             <Label layoutX="15.0" layoutY="22.0" prefHeight="21.0" prefWidth="110.0" text="Biển số xe        :">
                <font>
@@ -118,6 +118,7 @@
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
+            <TextField fx:id="transaction_id_Field0" layoutX="135.0" layoutY="20.0" visible="false" />
          </children>
       </AnchorPane>
       <AnchorPane layoutX="26.0" layoutY="557.0" prefHeight="339.0" prefWidth="590.0">
@@ -191,7 +192,7 @@
             <ComboBox fx:id="InforField1" layoutX="130.0" layoutY="172.0" prefHeight="34.0" prefWidth="210.0" />
          </children>
       </AnchorPane>
-      <Button fx:id="acceptBtn" layoutX="1142.0" layoutY="773.0" mnemonicParsing="false" prefHeight="36.0" prefWidth="170.0" text="Chấp nhận" />
+      <Button fx:id="acceptBtn" layoutX="1142.0" layoutY="773.0" mnemonicParsing="false" onAction="#acceptHandle" prefHeight="36.0" prefWidth="170.0" text="Chấp nhận" />
       <Button fx:id="inBtn" layoutX="1091.0" layoutY="773.0" mnemonicParsing="false" prefHeight="36.0" prefWidth="44.0" text="IN" />
       <Button fx:id="outBtn" disable="true" layoutX="1037.0" layoutY="772.0" mnemonicParsing="false" prefHeight="36.0" prefWidth="44.0" text="OUT" />
    </children>
