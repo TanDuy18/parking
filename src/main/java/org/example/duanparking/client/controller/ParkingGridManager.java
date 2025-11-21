@@ -1,22 +1,17 @@
 package org.example.duanparking.client.controller;
 
 import javafx.application.Platform;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
-import javafx.scene.text.TextAlignment;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
-import org.example.duanparking.server.dao.ParkingSlotEntity;
-import org.example.duanparking.model.SlotStatus;
+
 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static java.awt.Color.getColor;
 
 public class ParkingGridManager {
     private GridPane parkingGrid;
@@ -105,22 +100,23 @@ public class ParkingGridManager {
         }
     }
 
-    // Chọn màu theo trạng thái
     private String getColor(String status, String areaType) {
-         if (status.equalsIgnoreCase("OCCUPIED")) {
-            return "#ff4444";
-            }
+        String color = "#808080"; // Mặc định là màu xám (safe default)
 
-        // Nếu free/reserved → màu theo loại slot
-        String type = areaType;
+        if (status.equalsIgnoreCase("OCCUPIED")) {
+            color = "#ff4444";
+        } else if (status.equalsIgnoreCase("FREE")) {
+            String type = areaType;
+            color =  switch (type) {
+                case "PREMIUM" -> "#3388ff";  // xanh dương
+                case "VIP" -> "#aa44ff";      // tím
+                case "EV" -> "#44ff44";       // xanh neon
+                case "MOTOR" -> "#ffaa00";    // cam
+                default -> "#44aa44";         // STANDARD
+            };
+        }
 
-        return switch (type) {
-            case "PREMIUM" -> "#3388ff";  // xanh dương
-            case "VIP" -> "#aa44ff";      // tím
-            case "EV" -> "#44ff44";       // xanh neon
-            case "MOTOR" -> "#ffaa00";    // cam
-            default -> "#44aa44";         // STANDARD
-        };
+        return color;
     }
 
 
@@ -128,26 +124,7 @@ public class ParkingGridManager {
         Platform.runLater(() -> {
             Node node = parkingGrid.lookup("#slot" + slot.getSpotId());
             if (node instanceof AnchorPane slotPane) {
-                String color;
-
-                if ("STANDARD".equalsIgnoreCase(slot.getAreaType())) {
-                    // màu cho STANDARD
-                    color = switch (slot.getStatus().toUpperCase()) {
-                        case "OCCUPIED" -> "#ff4444"; // đỏ
-                        case "RESERVED" -> "#ffaa00"; // vàng cam
-                        default    -> "#44aa44"; // xanh lá
-                    };
-                } else if ("PREMIUM".equalsIgnoreCase(slot.getAreaType())) {
-
-                    color = switch (slot.getStatus().toUpperCase()) {
-                        case "OCCUPIED" -> "#aa0000";
-                        case "RESERVED" -> "#ff8800";
-                        default   -> "#4488ff";
-                    };
-                } else {
-                    color = "#cccccc"; // mặc định
-                }
-
+                String color = getColor(slot.getStatus(), slot.getAreaType());
                 slotPane.setStyle("-fx-background-color: " + color + "; -fx-border-color: black;");
             }
         });

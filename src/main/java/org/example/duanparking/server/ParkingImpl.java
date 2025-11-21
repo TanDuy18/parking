@@ -4,13 +4,12 @@ import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.remote.ClientCallback;
 import org.example.duanparking.common.remote.ParkingInterface;
 import org.example.duanparking.model.DBManager;
-import org.example.duanparking.server.dao.ParkingSlotEntity;
-import org.example.duanparking.model.SlotStatus;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.rmi.server.Unreferenced;
 import java.sql.*;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -288,10 +287,10 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 String vehicleType = rs.getString("vehicle_type");
                 String brand = rs.getString("brand");
                 String ownerName = rs.getString("owner_name");
-                LocalDateTime entryTime = rs.getTimestamp("entry_time").toLocalDateTime();
+                LocalDateTime entryTime = rs.getObject("entry_time", LocalDateTime.class);
+                System.out.println(entryTime);
                 LocalDateTime exitTime = LocalDateTime.now();
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                String enterTime = entryTime.format(formatter);
                 String leaveTime = exitTime.format(formatter);
 
                 String pricingSql = "SELECT hourly_rate, daily_rate FROM SlotPricing sp " +
@@ -311,7 +310,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                     double hourlyRate = rsPricing.getDouble("hourly_rate");
                     double dailyRate = rsPricing.getDouble("daily_rate");
 
-                    long minutes = java.time.Duration.between(entryTime, exitTime).toMinutes();
+
+                    long minutes = Duration.between(entryTime, exitTime).toMinutes();
                     long hours = minutes / 60;
                     if (hours == 0) hours = 1; // tối thiểu 1 giờ
 
@@ -321,7 +321,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                         fee = hourlyRate * hours;
                     }
                     out.setPlateNumber(plateNumber);
-                    out.setEntryTime(enterTime);
+                    out.setEntryTime(entryTime.format(formatter));
                     out.setExitTime(leaveTime);
                     out.setFee(fee);
                     out.setSpotId(spotId);
@@ -396,7 +396,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             ParkingSlotDTO dto = new ParkingSlotDTO();
             dto.setSpotId(slot.getSpotId());
             dto.setStatus("FREE");
-            dto.setAreaType("PREMINUM");
+            dto.setAreaType("PREMIUM");
 
             for (ClientCallback client : clients) {
                 try {

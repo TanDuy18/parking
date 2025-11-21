@@ -159,6 +159,7 @@ public class DasboardController implements Initializable {
                     placeField0.setText(data.getSpotId());
                     InforField0.setText(data.getVehicleType());
                     arrivalTimeField0.setText(data.getEntryTime());
+                    System.out.println(data.getEntryTime());
                     leaveTimeField0.setText(data.getExitTime());
                     priceField0.setText(formatVND(data.getFee()));
                 });
@@ -306,7 +307,7 @@ public class DasboardController implements Initializable {
                 new Thread(() -> {
                     try {
                         ParkingSlotDTO out = new ParkingSlotDTO(
-                                Integer.valueOf(transaction_id_Field0.getText()),
+                                Integer.parseInt(transaction_id_Field0.getText()),
                                 ownerField0.getText(), brandField0.getText(), plateField0.getText(),
                                 placeField0.getText(), InforField0.getText(), arrivalTimeField0.getText(), 
                                 leaveTimeField0.getText(), unformatVND(priceField0.getText())
