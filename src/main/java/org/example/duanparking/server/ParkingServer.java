@@ -16,8 +16,10 @@ public class ParkingServer  {
 
             String name = "ParkingService";
             ParkingImpl obj = new ParkingImpl(); // Đã extend UnicastedRemote rồi
+            SyncServiceImpl syncObj = new SyncServiceImpl(obj);
             Registry registry = LocateRegistry.createRegistry(port);
             registry.rebind(name, obj);
+            registry.rebind("SyncService", syncObj);
             System.out.println("ParkingServer chạy trên port " + port + "!");
 
             keepAlive();

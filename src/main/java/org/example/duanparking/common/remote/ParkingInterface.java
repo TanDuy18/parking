@@ -22,6 +22,4 @@ public interface ParkingInterface extends Remote {
    ParkingSlotDTO getVehicleInfoForOut(String plateNumber) throws RemoteException;
    boolean takeVehicleOut(ParkingSlotDTO slot) throws RemoteException;
    void ping() throws RemoteException;
-   void syncSlots(List<ParkingSlotDTO> slots) throws RemoteException;
-   void onSlotUpdated(ParkingSlotDTO slot) throws RemoteException;
 }

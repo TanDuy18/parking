@@ -3,8 +3,10 @@ package org.example.duanparking.server;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.remote.ClientCallback;
 import org.example.duanparking.common.remote.ParkingInterface;
+import org.example.duanparking.common.remote.SyncService;
 import org.example.duanparking.model.DBManager;
 
+import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.rmi.server.Unreferenced;
@@ -21,6 +23,10 @@ import java.util.concurrent.TimeUnit;
 
 public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface, Unreferenced {
     private Set<ClientCallback> clients = new HashSet<>();
+    private List<String> otherServers = List.of(
+            "rmi://192.168.1.10:1099/SyncService",
+            "rmi://192.168.1.20:1099/SyncService"
+    );
 
     public ParkingImpl() throws java.rmi.RemoteException {
         super();
@@ -38,44 +44,55 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         }, 10, 15, TimeUnit.SECONDS);
     }
 
+    private void broadcast(ParkingSlotDTO slot) {
+        for(String url: otherServers) {
+            try {
+               SyncService remote = (SyncService) Naming.lookup(url); 
+                remote.syncVehicleIn(slot); 
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     @Override
     public ArrayList<ParkingSlotDTO> getAllSlots() throws RemoteException {
         ArrayList<ParkingSlotDTO> Entities = new ArrayList<>();
         String sql = """
-                SELECT 
-                    ps.spot_id, ps.status, ps.row_index, ps.col_index,ps.area_type,
-                    ph.vehicle_id, ph.entry_time, ph.fee,
-                    v.plate_number, v.owner_name
-                FROM parkingslot ps
-                LEFT JOIN ParkingHistory ph 
-                    ON ps.spot_id = ph.spot_id 
-                    AND ph.status = 'ACTIVE'
-                LEFT JOIN Vehicle v ON ph.vehicle_id = v.vehicle_id
-                ORDER BY ps.row_index, ps.col_index
-        """;
+                        SELECT
+                            ps.spot_id, ps.status, ps.row_index, ps.col_index,ps.area_type,
+                            ph.vehicle_id, ph.entry_time, ph.fee,
+                            v.plate_number, v.owner_name
+                        FROM parkingslot ps
+                        LEFT JOIN ParkingHistory ph
+                            ON ps.spot_id = ph.spot_id
+                            AND ph.status = 'ACTIVE'
+                        LEFT JOIN Vehicle v ON ph.vehicle_id = v.vehicle_id
+                        ORDER BY ps.row_index, ps.col_index
+                """;
         try (Connection conn = DBManager.getConnection();) {
             conn.setAutoCommit(false);
             try (PreparedStatement ps = conn.prepareStatement(sql);
                     ResultSet rs = ps.executeQuery()) {
 
-                    while (rs.next()) {
-                        ParkingSlotDTO slotDTO = new ParkingSlotDTO();
-                        slotDTO.setSpotId(rs.getString("spot_id"));
-                        slotDTO.setStatus(rs.getString("status"));
-                        slotDTO.setRow(rs.getInt("row_index"));
-                        slotDTO.setCol(rs.getInt("col_index"));
-                        slotDTO.setAreaType(rs.getString("area_type"));
+                while (rs.next()) {
+                    ParkingSlotDTO slotDTO = new ParkingSlotDTO();
+                    slotDTO.setSpotId(rs.getString("spot_id"));
+                    slotDTO.setStatus(rs.getString("status"));
+                    slotDTO.setRow(rs.getInt("row_index"));
+                    slotDTO.setCol(rs.getInt("col_index"));
+                    slotDTO.setAreaType(rs.getString("area_type"));
 
-                        if (rs.getObject("vehicle_id") != null) {
-                            slotDTO.setPlateNumber(rs.getString("plate_number"));
-                            slotDTO.setOwnerName(rs.getString("owner_name"));
-                            Timestamp entryTime = rs.getTimestamp("entry_time");
-                            slotDTO.setEntryTime(entryTime != null ? entryTime.toLocalDateTime().toString() : null);
-                            slotDTO.setFee(rs.getDouble("fee"));
-                        }
-                        Entities.add(slotDTO);
+                    if (rs.getObject("vehicle_id") != null) {
+                        slotDTO.setPlateNumber(rs.getString("plate_number"));
+                        slotDTO.setOwnerName(rs.getString("owner_name"));
+                        Timestamp entryTime = rs.getTimestamp("entry_time");
+                        slotDTO.setEntryTime(entryTime != null ? entryTime.toLocalDateTime().toString() : null);
+                        slotDTO.setFee(rs.getDouble("fee"));
                     }
-            }catch (SQLException e) {
+                    Entities.add(slotDTO);
+                }
+            } catch (SQLException e) {
                 e.printStackTrace();
                 conn.rollback();
             }
@@ -87,7 +104,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
     @Override
     public void updateSlotStatus(String spotId, String status, String plateName, String owner,
-                                 String arriveTime, String brand, String infor) throws RemoteException {
+            String arriveTime, String brand, String infor) throws RemoteException {
 
         int vehicleId;
 
@@ -128,8 +145,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                     } else {
                         // Insert xe mới
                         String insert = "INSERT INTO Vehicle (plate_number, owner_name, vehicle_type, brand) VALUES (?, ?, ?, ?)";
-                        try (PreparedStatement insertPs =
-                                     conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+                        try (PreparedStatement insertPs = conn.prepareStatement(insert,
+                                Statement.RETURN_GENERATED_KEYS)) {
 
                             insertPs.setString(1, plateName);
                             insertPs.setString(2, owner);
@@ -145,9 +162,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 }
 
                 // 4. Insert lịch sử parking
-                String insertHistorySql =
-                        "INSERT INTO ParkingHistory (spot_id, vehicle_id, entry_time, status) " +
-                                "VALUES (?, ?, ?, 'ACTIVE')";
+                String insertHistorySql = "INSERT INTO ParkingHistory (spot_id, vehicle_id, entry_time, status) " +
+                        "VALUES (?, ?, ?, 'ACTIVE')";
                 try (PreparedStatement insertHistory = conn.prepareStatement(insertHistorySql)) {
                     insertHistory.setString(1, spotId);
                     insertHistory.setInt(2, vehicleId);
@@ -163,7 +179,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                         ParkingSlotDTO dto = new ParkingSlotDTO();
                         dto.setSpotId(spotId);
                         dto.setStatus(status);
-
+                        broadcast(dto);
                         client.onSlotUpdated(dto);
                     } catch (RemoteException ex) {
                         System.err.println("Lỗi callback: " + ex.getMessage());
@@ -171,7 +187,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 }
 
             } catch (Exception e) {
-                conn.rollback();   // rollback toàn bộ nếu có lỗi
+                conn.rollback(); // rollback toàn bộ nếu có lỗi
                 throw e;
             }
 
@@ -179,7 +195,6 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             e.printStackTrace();
         }
     }
-
 
     @Override
     public void registerClient(ClientCallback client) throws RemoteException {
@@ -193,19 +208,18 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         System.out.println("Client chết đột ngột! Dọn dẹp tự động: " + this);
     }
 
-   @Override
+    @Override
     public boolean checkIdIn(String plateName) throws RemoteException {
 
-        String sql =
-            "SELECT ph.entry_time, ph.exit_time, ph.status " +
-            "FROM parkinghistory ph " +
-            "JOIN vehicle v ON v.vehicle_id = ph.vehicle_id " +
-            "WHERE v.plate_number = ? " +
-            "ORDER BY ph.entry_time DESC " +
-            "LIMIT 1";
+        String sql = "SELECT ph.entry_time, ph.exit_time, ph.status " +
+                "FROM parkinghistory ph " +
+                "JOIN vehicle v ON v.vehicle_id = ph.vehicle_id " +
+                "WHERE v.plate_number = ? " +
+                "ORDER BY ph.entry_time DESC " +
+                "LIMIT 1";
 
         try (Connection conn = DBManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, plateName);
             ResultSet rs = ps.executeQuery();
@@ -223,13 +237,12 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         return false;
     }
 
-
-   @Override
+    @Override
     public boolean checkPlaceIn(String placeName) throws RemoteException {
         String sql = "SELECT status FROM parkingslot WHERE spot_id = ?";
 
         try (Connection conn = DBManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, placeName);
 
@@ -247,21 +260,11 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         return false;
     }
 
-
     @Override
     public void ping() throws RemoteException {
 
     }
 
-    @Override
-    public void syncSlots(List<ParkingSlotDTO> slots) throws RemoteException {
-
-    }
-
-    @Override
-    public void onSlotUpdated(ParkingSlotDTO slot) throws RemoteException {
-
-    }
 
     @Override
     public ParkingSlotDTO getVehicleInfoForOut(String plateNumber) throws RemoteException {
@@ -269,7 +272,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         ParkingSlotDTO out = new ParkingSlotDTO();
         try (Connection conn = DBManager.getConnection()) {
 
-            String selectSql = "SELECT ph.transaction_id, ph.entry_time, ph.spot_id, v.vehicle_type, v.brand, v.owner_name " +
+            String selectSql = "SELECT ph.transaction_id, ph.entry_time, ph.spot_id, v.vehicle_type, v.brand, v.owner_name "
+                    +
                     "FROM ParkingHistory ph " +
                     "JOIN Vehicle v ON ph.vehicle_id = v.vehicle_id " +
                     "WHERE v.plate_number = ? AND ph.status='ACTIVE' ORDER BY ph.entry_time DESC LIMIT 1";
@@ -310,10 +314,10 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                     double hourlyRate = rsPricing.getDouble("hourly_rate");
                     double dailyRate = rsPricing.getDouble("daily_rate");
 
-
                     long minutes = Duration.between(entryTime, exitTime).toMinutes();
                     long hours = minutes / 60;
-                    if (hours == 0) hours = 1; // tối thiểu 1 giờ
+                    if (hours == 0)
+                        hours = 1; // tối thiểu 1 giờ
 
                     if (hours >= 24) {
                         fee = dailyRate * ((double) hours / 24);
@@ -329,7 +333,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                     out.setVehicleType(vehicleType);
                     out.setOwnerName(ownerName);
                     out.setTransaction_id(transactionId);
-                }catch (Exception e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -352,14 +356,15 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             try (PreparedStatement lock = conn.prepareStatement(lockSql)) {
                 lock.setString(1, slot.getSpotId());
                 ResultSet rs = lock.executeQuery();
-                if (!rs.next()) throw new IllegalStateException("Slot không tồn tại!");
+                if (!rs.next())
+                    throw new IllegalStateException("Slot không tồn tại!");
             }
 
             // 2️⃣ Update ParkingHistory → OUT
             String updateHistory = """
-            UPDATE parkinghistory SET exit_time=?, fee=?, status='COMPLETED'
-            WHERE transaction_id=? AND status='ACTIVE'
-        """;
+                        UPDATE parkinghistory SET exit_time=?, fee=?, status='COMPLETED'
+                        WHERE transaction_id=? AND status='ACTIVE'
+                    """;
 
             try (PreparedStatement ps = conn.prepareStatement(updateHistory)) {
                 ps.setString(1, slot.getExitTime());
@@ -373,17 +378,16 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             }
 
             String paySql = """
-                INSERT INTO Payment(transaction_id, amount, payment_type, payment_method)
-                VALUES (?, ?, 'VISITOR', ?)
-            """;
+                        INSERT INTO Payment(transaction_id, amount, payment_type, payment_method)
+                        VALUES (?, ?, 'VISITOR', ?)
+                    """;
 
             try (PreparedStatement ps = conn.prepareStatement(paySql)) {
-                ps.setInt(1, slot.getTransaction_id());  // transaction ID từ ParkingHistory
-                ps.setDouble(2, slot.getFee());          // số tiền tính được
-                ps.setString(3, "CASH");                 // hoặc CARD/TRANSFER
+                ps.setInt(1, slot.getTransaction_id()); // transaction ID từ ParkingHistory
+                ps.setDouble(2, slot.getFee()); // số tiền tính được
+                ps.setString(3, "CASH"); // hoặc CARD/TRANSFER
                 ps.executeUpdate();
             }
-
 
             String sqlUpdateSlot = "UPDATE parkingslot SET status='FREE' WHERE spot_id=?";
             try (PreparedStatement ps = conn.prepareStatement(sqlUpdateSlot)) {
@@ -412,7 +416,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
             // rollback nếu lỗi
             try {
-                if (conn != null) conn.rollback();
+                if (conn != null)
+                    conn.rollback();
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
@@ -421,14 +426,14 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
         } finally {
             try {
-                if (conn != null) conn.setAutoCommit(true);
-                if (conn != null) conn.close();
+                if (conn != null)
+                    conn.setAutoCommit(true);
+                if (conn != null)
+                    conn.close();
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
     }
 
-
 }
-
