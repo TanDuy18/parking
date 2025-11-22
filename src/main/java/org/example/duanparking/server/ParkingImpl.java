@@ -24,8 +24,7 @@ import java.util.concurrent.TimeUnit;
 public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface, Unreferenced {
     private Set<ClientCallback> clients = new HashSet<>();
     private List<String> otherServers = List.of(
-            "rmi://192.168.1.10:1099/SyncService",
-            "rmi://192.168.1.20:1099/SyncService"
+            "rmi://192.168.19.128:1099/SyncService"
     );
 
     public ParkingImpl() throws java.rmi.RemoteException {

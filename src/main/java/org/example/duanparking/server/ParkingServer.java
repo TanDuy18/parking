@@ -1,6 +1,7 @@
 package org.example.duanparking.server;
 
 
+import java.net.InetAddress;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
@@ -9,7 +10,7 @@ public class ParkingServer  {
     public static void main(String[] args) {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 1099;
         try {
-            System.setProperty("java.rmi.server.hostname", "localhost");
+            System.setProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostAddress());
 
             System.setProperty("sun.rmi.dgc.client.gcInterval", "15000"); // 15s
             System.setProperty("sun.rmi.dgc.server.gcInterval", "15000");
