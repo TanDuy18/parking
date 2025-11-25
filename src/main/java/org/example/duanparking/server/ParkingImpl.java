@@ -166,7 +166,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 try (PreparedStatement insertHistory = conn.prepareStatement(insertHistorySql)) {
                     insertHistory.setString(1, spotId);
                     insertHistory.setInt(2, vehicleId);
-                    insertHistory.setString(3, arriveTime);
+                    insertHistory.setTimestamp(3, Timestamp.valueOf(arriveTime));
 
                     insertHistory.executeUpdate();
                 }
@@ -447,26 +447,35 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         try (Connection conn = DBManager.getConnection()) {
             conn.setAutoCommit(false);
 
-            // Update slot status
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "UPDATE parkingslot SET status=? WHERE spot_id=?")) {
-                ps.setString(1, slot.getStatus());
-                ps.setString(2, slot.getSpotId());
-                ps.executeUpdate();
+            // Format datetime
+            LocalDateTime time = null;
+            if(slot.getEntryTime() != null){
+                time = LocalDateTime.parse(slot.getEntryTime().replace("T"," "));
             }
 
-            // Nếu slot có vehicle -> insert nếu chưa tồn tại
+            // Update slot
+            String sqlUpdate = "UPDATE parkingslot SET status=? WHERE spot_id=?";
+            try (PreparedStatement ps = conn.prepareStatement(sqlUpdate)) {
+                ps.setString(1, slot.getStatus());
+                ps.setString(2, slot.getSpotId());
+                int updated = ps.executeUpdate();
+                System.out.println("SYNC UPDATE SLOT = " + updated);
+            }
+
             if (slot.getPlateNumber() != null) {
                 int vehicleId;
-                String checkSql = "SELECT vehicle_id FROM vehicle WHERE plate_number=?";
-                try (PreparedStatement check = conn.prepareStatement(checkSql)) {
+
+                // Check vehicle
+                String checkV = "SELECT vehicle_id FROM vehicle WHERE plate_number=?";
+                try (PreparedStatement check = conn.prepareStatement(checkV)) {
                     check.setString(1, slot.getPlateNumber());
                     ResultSet rs = check.executeQuery();
+
                     if (rs.next()) {
                         vehicleId = rs.getInt(1);
                     } else {
-                        String insert = "INSERT INTO Vehicle(plate_number, owner_name, vehicle_type, brand) VALUES (?, ?, ?, ?)";
-                        try (PreparedStatement ins = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+                        String insV = "INSERT INTO vehicle(plate_number, owner_name, vehicle_type, brand) VALUES (?,?,?,?)";
+                        try (PreparedStatement ins = conn.prepareStatement(insV, Statement.RETURN_GENERATED_KEYS)) {
                             ins.setString(1, slot.getPlateNumber());
                             ins.setString(2, slot.getOwnerName());
                             ins.setString(3, slot.getVehicleType());
@@ -477,40 +486,35 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                             vehicleId = keys.getInt(1);
                         }
                     }
+                }
 
-                    // Insert ParkingHistory nếu cần
-                    String insertHistory = "INSERT INTO ParkingHistory(spot_id, vehicle_id, entry_time, status, fee) VALUES (?, ?, ?, 'ACTIVE', ?)";
-                    try (PreparedStatement ph = conn.prepareStatement(insertHistory)) {
-                        ph.setString(1, slot.getSpotId());
-                        ph.setInt(2, vehicleId);
-                        ph.setTimestamp(3, Timestamp.valueOf(slot.getEntryTime()));
-                        ph.setDouble(4, slot.getFee());
-                        ph.executeUpdate();
+                // Check history trước khi insert
+                String checkH = "SELECT 1 FROM ParkingHistory WHERE spot_id=? AND status='ACTIVE'";
+                try (PreparedStatement ch = conn.prepareStatement(checkH)) {
+                    ch.setString(1, slot.getSpotId());
+                    ResultSet rs = ch.executeQuery();
+
+                    if (!rs.next()) {
+                        String insertH = "INSERT INTO ParkingHistory(spot_id, vehicle_id, entry_time, status, fee) VALUES (?, ?, ?, 'ACTIVE', ?)";
+                        try (PreparedStatement ph = conn.prepareStatement(insertH)) {
+                            ph.setString(1, slot.getSpotId());
+                            ph.setInt(2, vehicleId);
+                            ph.setTimestamp(3, Timestamp.valueOf(time));
+                            ph.setDouble(4, slot.getFee());
+                            ph.executeUpdate();
+                        }
                     }
                 }
             }
 
             conn.commit();
 
-            // Update client GUI
-            ParkingSlotDTO dto = new ParkingSlotDTO();
-            dto.setSpotId(slot.getSpotId());
-            dto.setStatus(slot.getStatus());
-            dto.setPlateNumber(slot.getPlateNumber());
-            dto.setOwnerName(slot.getOwnerName());
-
-            for (ClientCallback client : clients) {
-                try {
-                    client.onSlotUpdated(dto);
-                } catch (Exception e) {
-                    System.out.println("Client lỗi callback sync: " + e.getMessage());
-                }
-            }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+
 
     @Override
     public void takeVehicleOutFromSync(ParkingSlotDTO slot) {
