@@ -442,4 +442,116 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         }
     }
 
+    @Override
+    public void updateSlotFromSync(ParkingSlotDTO slot) {
+        try (Connection conn = DBManager.getConnection()) {
+            conn.setAutoCommit(false);
+
+            // Update slot status
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE parkingslot SET status=? WHERE spot_id=?")) {
+                ps.setString(1, slot.getStatus());
+                ps.setString(2, slot.getSpotId());
+                ps.executeUpdate();
+            }
+
+            // Nếu slot có vehicle -> insert nếu chưa tồn tại
+            if (slot.getPlateNumber() != null) {
+                int vehicleId;
+                String checkSql = "SELECT vehicle_id FROM vehicle WHERE plate_number=?";
+                try (PreparedStatement check = conn.prepareStatement(checkSql)) {
+                    check.setString(1, slot.getPlateNumber());
+                    ResultSet rs = check.executeQuery();
+                    if (rs.next()) {
+                        vehicleId = rs.getInt(1);
+                    } else {
+                        String insert = "INSERT INTO Vehicle(plate_number, owner_name, vehicle_type, brand) VALUES (?, ?, ?, ?)";
+                        try (PreparedStatement ins = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+                            ins.setString(1, slot.getPlateNumber());
+                            ins.setString(2, slot.getOwnerName());
+                            ins.setString(3, slot.getVehicleType());
+                            ins.setString(4, slot.getBrand());
+                            ins.executeUpdate();
+                            ResultSet keys = ins.getGeneratedKeys();
+                            keys.next();
+                            vehicleId = keys.getInt(1);
+                        }
+                    }
+
+                    // Insert ParkingHistory nếu cần
+                    String insertHistory = "INSERT INTO ParkingHistory(spot_id, vehicle_id, entry_time, status, fee) VALUES (?, ?, ?, 'ACTIVE', ?)";
+                    try (PreparedStatement ph = conn.prepareStatement(insertHistory)) {
+                        ph.setString(1, slot.getSpotId());
+                        ph.setInt(2, vehicleId);
+                        ph.setTimestamp(3, Timestamp.valueOf(slot.getEntryTime()));
+                        ph.setDouble(4, slot.getFee());
+                        ph.executeUpdate();
+                    }
+                }
+            }
+
+            conn.commit();
+
+            // Update client GUI
+            ParkingSlotDTO dto = new ParkingSlotDTO();
+            dto.setSpotId(slot.getSpotId());
+            dto.setStatus(slot.getStatus());
+            dto.setPlateNumber(slot.getPlateNumber());
+            dto.setOwnerName(slot.getOwnerName());
+
+            for (ClientCallback client : clients) {
+                try {
+                    client.onSlotUpdated(dto);
+                } catch (Exception e) {
+                    System.out.println("Client lỗi callback sync: " + e.getMessage());
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void takeVehicleOutFromSync(ParkingSlotDTO slot) {
+        try (Connection conn = DBManager.getConnection()) {
+            conn.setAutoCommit(false);
+
+            // Update ParkingHistory
+            String updateHistory = "UPDATE ParkingHistory SET exit_time=?, fee=?, status='COMPLETED' WHERE transaction_id=?";
+            try (PreparedStatement ps = conn.prepareStatement(updateHistory)) {
+                ps.setString(1, slot.getExitTime());
+                ps.setDouble(2, slot.getFee());
+                ps.setInt(3, slot.getTransaction_id());
+                ps.executeUpdate();
+            }
+
+            // Update slot status
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE parkingslot SET status='FREE' WHERE spot_id=?")) {
+                ps.setString(1, slot.getSpotId());
+                ps.executeUpdate();
+            }
+
+            conn.commit();
+
+            // Update GUI client
+            ParkingSlotDTO dto = new ParkingSlotDTO();
+            dto.setSpotId(slot.getSpotId());
+            dto.setStatus("FREE");
+
+            for (ClientCallback client : clients) {
+                try {
+                    client.onSlotUpdated(dto);
+                } catch (Exception e) {
+                    System.out.println("Client lỗi callback OUT sync: " + e.getMessage());
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
 }
