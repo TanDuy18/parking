@@ -2,10 +2,11 @@ module org.example.duanparking {
     requires javafx.controls;
     requires javafx.fxml;
     requires java.desktop; // thêm nếu dùng OpenCV load ảnh
-    requires opencv;
     requires java.rmi;
     requires java.sql;
     requires tess4j;
+    requires webcam.capture;
+    requires javafx.swing;
 
 
     exports org.example.duanparking;
@@ -19,5 +20,8 @@ module org.example.duanparking {
     exports org.example.duanparking.client.controller to java.rmi;
     opens org.example.duanparking.client.controller to java.rmi, javafx.fxml;
     exports org.example.duanparking.server.dao to java.rmi;
+    opens org.example.duanparking.common to javafx.fxml;
+    exports org.example.duanparking.common;
+
 
 }

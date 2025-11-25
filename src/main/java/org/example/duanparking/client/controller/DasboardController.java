@@ -1,10 +1,16 @@
 package org.example.duanparking.client.controller;
 
+import com.github.sarxos.webcam.Webcam;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -13,20 +19,16 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
+import javafx.stage.Stage;
 import javafx.util.Duration;
-import nu.pattern.OpenCV;
+
 import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.remote.ClientCallback;
 import org.example.duanparking.common.remote.ParkingInterface;
 import org.example.duanparking.server.dao.ParkingSlotEntity;
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.core.Size;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
-import org.opencv.videoio.VideoCapture;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.rmi.RemoteException;
@@ -44,6 +46,7 @@ public class DasboardController implements Initializable {
     @FXML private Button acceptBtn;
     @FXML private Button outBtn;
     @FXML private Button inBtn;
+    @FXML private Button rentBtn;
     @FXML private GridPane parkingGrid;
 
     @FXML private AnchorPane outPane;
@@ -69,24 +72,51 @@ public class DasboardController implements Initializable {
     private ParkingInterface parkingInterface;
     private ClientCallback clientCallback;
     private static RmiClientManager manager;
-    private VideoCapture capture;
+    private Webcam webcam;
     private boolean cameraActive = true;
+
     private DetectPlate detectPlate;
     private int frameCount = 0;
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
     private PauseTransition debounce = new PauseTransition(Duration.millis(500));
     private PauseTransition debounceOut = new PauseTransition(Duration.millis(500));
+    private PauseTransition debounceIn = new PauseTransition(Duration.millis(500));
+
 
     int checkInOut = 0;
 
     ParkingGridManager gridManager;
 
+    private void startWebcam() {
+        Thread thread = new Thread(() -> {
+            try {
+                webcam = Webcam.getDefault();
+                if (webcam != null) {
+                    webcam.setViewSize(new Dimension(640, 480));
+                    webcam.open();
 
-    private Image matToImage(Mat frame) {
-        MatOfByte buffer = new MatOfByte();
-        Imgcodecs.imencode(".bmp", frame, buffer);
-        return new Image(new ByteArrayInputStream(buffer.toArray()));
+                    while (cameraActive && webcam.isOpen()) {
+                        // 3. Lấy ảnh từ Webcam (BufferedImage)
+                        BufferedImage bImage = webcam.getImage();
+
+                        if (bImage != null) {
+
+                            Image fxImage = SwingFXUtils.toFXImage(bImage, null);
+
+                            Platform.runLater(() -> cameraView.setImage(fxImage));
+                        }
+                        Thread.sleep(33);
+                    }
+                } else {
+                    System.err.println("Không tìm thấy Webcam nào!");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+        thread.setDaemon(true); // Đóng thread khi tắt app
+        thread.start();
     }
 
     private void openNotificationScreen(String name) {
@@ -100,6 +130,13 @@ public class DasboardController implements Initializable {
             e.printStackTrace();
         }
     }
+    public void stopWebcam() {
+        cameraActive = false;
+        if (webcam != null && webcam.isOpen()) {
+            webcam.close();
+        }
+    }
+
     private String formatVND(double money) {
         NumberFormat format = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
         return format.format(money);
@@ -170,67 +207,49 @@ public class DasboardController implements Initializable {
         }).start();
     }
 
+    private void autoFillInInfo() {
+        String plate = plateField1.getText().trim();
+        if (plate.isEmpty()) return;
+
+        new Thread(() -> {
+            try{
+                ParkingSlotDTO data = parkingInterface.getVehicleInfoForIn(plate);
+
+                if (data == null) {
+                    System.out.println(" ");
+                }
+            }catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         firstRun();
-        OpenCV.loadLocally();
-        capture = new VideoCapture(0);
+        startWebcam();
         try {
-            manager = new RmiClientManager();
+            manager = RmiClientManager.getInstance();
             manager.connect();
 
             parkingInterface = manager.getParkingInterface();
             clientCallback = manager.getClientCallBack();
 
             List<ParkingSlotDTO> slots = parkingInterface.getAllSlots();
-            for (ParkingSlotDTO slot : slots) {
-                System.out.println(slot.getCol() +" "+ slot.getRow());
-            }
-            System.out.println(slots);
             gridManager = new ParkingGridManager(parkingGrid);
             gridManager.updateGrid(slots);
             //gridManager.updateGrid(slots);
 
             manager.setGridManager(gridManager);
 
-            parkingInterface.registerClient(clientCallback);
+            if (!manager.isRegistered()) {
+                parkingInterface.registerClient(clientCallback);
+                manager.setRegistered(true);
+            }
         } catch (RemoteException e) {
             throw new RuntimeException(e);
         }
-        Thread captureThread = new Thread(() -> {
-            Mat frame = new Mat();
-            while (cameraActive && capture.isOpened()) {
-                if (capture.grab()) {
-                    capture.retrieve(frame);
-                    Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2RGB);
 
-                    if (!frame.empty()) {
-                        Mat resized = new Mat();
-
-                        Imgproc.resize(frame, resized, new Size(640, 480), 0, 0, Imgproc.INTER_AREA);
-                        Imgproc.cvtColor(resized, resized, Imgproc.COLOR_BGR2RGB);
-
-                        // Imgproc.flip(resized, resized, 1);
-
-                        frameCount++;
-                        if (frameCount % 10 == 0) {
-
-                        }
-                        Image fxImage = matToImage(resized);
-                        Platform.runLater(() -> cameraView.setImage(fxImage));
-                        resized.release();
-                    }
-                }
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        });
-        captureThread.setDaemon(true);
-        captureThread.start();
 
         InforField1.getItems().addAll("CAR", "MOTORBIKE", "TRUCK", "BICYCLE");
         inBtn.setOnAction(event -> {
@@ -260,6 +279,10 @@ public class DasboardController implements Initializable {
 
         debounceOut.setOnFinished(e -> autoFillOutInfo());
         plateField0.textProperty().addListener((obs, oldVal, newVal) -> debounceOut.playFromStart());
+
+        debounceIn.setOnFinished(e -> autoFillInInfo());
+        plateField1.textProperty().addListener((obs, oldVal, newVal) -> debounceOut.playFromStart());
+
     }
     @FXML
     void acceptHandle(ActionEvent event) {
@@ -320,4 +343,28 @@ public class DasboardController implements Initializable {
                 }).start();
         }
     }
+    @FXML
+    private void handleRentButton(ActionEvent event) {
+        try {
+            stopWebcam();
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/example/duanparking/rent-screen.fxml"));
+            Parent root = loader.load();
+
+
+            Scene newScene = new Scene(root);
+
+
+            Stage currentStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+
+
+            currentStage.setScene(newScene);
+            currentStage.setTitle("Rent Parking");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            openNotificationScreen("Lỗi load giao diện Rent: " + e.getMessage());  // Dùng method alert của mày
+        }
+    }
+
+
 }

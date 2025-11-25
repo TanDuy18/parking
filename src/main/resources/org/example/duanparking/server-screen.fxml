@@ -12,6 +12,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.text.Font?>
+<?import org.controlsfx.control.PrefixSelectionChoiceBox?>
 
 <AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="941.0" prefWidth="1337.0" style="-fx-background-color: #EAEEF4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.duanparking.client.controller.DasboardController">
    <children>
@@ -30,8 +31,9 @@
       <AnchorPane layoutX="663.0" layoutY="866.0" prefHeight="62.0" prefWidth="542.0" style="-fx-background-color: #C2A68C; -fx-background-radius: 10px;">
          <children>
             <Button layoutX="14.0" layoutY="20.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="86.0" text="Dashboard" />
-            <Button layoutX="228.0" layoutY="20.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="86.0" text="Lịch sử" />
-            <Button layoutX="117.0" layoutY="20.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="86.0" text="Button" />
+            <Button layoutX="228.0" layoutY="20.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="104.0" text="Truy xuất lịch sử" />
+            <Button fx:id="rentBtn" layoutX="117.0" layoutY="20.0" mnemonicParsing="false" onAction="#handleRentButton" prefHeight="25.0" prefWidth="86.0" text="Đăng ký chỗ" />
+            <PrefixSelectionChoiceBox fx:id="serverRmi" layoutX="355.0" layoutY="20.0" prefHeight="25.0" prefWidth="164.0" />
          </children>
       </AnchorPane>
       <AnchorPane fx:id="outPane" layoutX="664.0" layoutY="562.0" prefHeight="275.0" prefWidth="661.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;">

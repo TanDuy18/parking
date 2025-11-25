@@ -20,6 +20,7 @@ public interface ParkingInterface extends Remote {
    boolean checkIdIn(String plateName) throws RemoteException;
    boolean checkPlaceIn (String placename) throws RemoteException;
    ParkingSlotDTO getVehicleInfoForOut(String plateNumber) throws RemoteException;
+   ParkingSlotDTO getVehicleInfoForIn(String plateNumber) throws RemoteException;
    boolean takeVehicleOut(ParkingSlotDTO slot) throws RemoteException;
    void ping() throws RemoteException;
 }

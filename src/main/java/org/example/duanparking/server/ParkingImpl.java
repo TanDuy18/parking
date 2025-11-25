@@ -173,17 +173,19 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
                 conn.commit();
 
-                for (ClientCallback client : clients) {
-                    try {
-                        ParkingSlotDTO dto = new ParkingSlotDTO();
-                        dto.setSpotId(spotId);
-                        dto.setStatus(status);
-                        broadcast(dto);
-                        client.onSlotUpdated(dto);
-                    } catch (RemoteException ex) {
-                        System.err.println("Lỗi callback: " + ex.getMessage());
+                new Thread(() -> {
+                    for (ClientCallback client : clients) {
+                        try {
+                            ParkingSlotDTO dto = new ParkingSlotDTO();
+                            dto.setSpotId(spotId);
+                            dto.setStatus(status);
+                            broadcast(dto);
+                            client.onSlotUpdated(dto);
+                        } catch (RemoteException ex) {
+                            System.err.println("Lỗi callback: " + ex.getMessage());
+                        }
                     }
-                }
+                }).start();
 
             } catch (Exception e) {
                 conn.rollback(); // rollback toàn bộ nếu có lỗi
@@ -341,6 +343,11 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             throw new RemoteException("Lỗi OUT xe: " + e.getMessage());
         }
         return out;
+    }
+
+    @Override
+    public ParkingSlotDTO getVehicleInfoForIn(String plateNumber) throws RemoteException {
+        return null;
     }
 
     @Override

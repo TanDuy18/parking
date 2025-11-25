@@ -12,6 +12,7 @@ public class RmiClientManager {
     private static RmiClientManager instance;
     private ParkingInterface parkingInterface;
     private ClientCallback clientCallback;
+    private boolean registered = false;
 
     public RmiClientManager() {}
 
@@ -22,7 +23,16 @@ public class RmiClientManager {
         return instance;
     }
 
+    public boolean isRegistered() {
+        return registered;
+    }
+
+    public void setRegistered(boolean registered) {
+        this.registered = registered;
+    }
+
     public void connect() {
+        if (parkingInterface != null) return;
         try{
             Registry registry = LocateRegistry.getRegistry("localhost",1099);
             parkingInterface = (ParkingInterface) registry.lookup("ParkingService"); 

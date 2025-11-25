@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS parkingslot (
     id INT PRIMARY KEY AUTO_INCREMENT,
     spot_id VARCHAR(25) NOT NULL UNIQUE,
     area_type ENUM('STANDARD', 'PREMIUM') DEFAULT 'STANDARD',  -- ✅ NEW: Phân loại vị trí
-    status ENUM('FREE', 'RESERVED', 'OCCUPIED') DEFAULT 'FREE',
+    status ENUM('FREE', 'RESERVED', 'OCCUPIED', 'RENTED') DEFAULT 'FREE',
     row_index INT DEFAULT 0,
     col_index INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -27,13 +27,26 @@ CREATE TABLE IF NOT EXISTS SlotPricing (
     INDEX idx_area_type (area_type, vehicle_type)
 );
 
+CREATE TABLE IF NOT EXISTS RentPricing (
+    pricing_id INT PRIMARY KEY AUTO_INCREMENT,
+    area_type ENUM('STANDARD', 'PREMIUM') NOT NULL,
+    vehicle_type ENUM('CAR', 'MOTORBIKE', 'TRUCK') NOT NULL,
+    duration_months INT NOT NULL DEFAULT 1, -- 1: 1 tháng, 3: 3 tháng (Quý), 12: 1 năm
+    price DECIMAL(10,2) NOT NULL,           -- Giá trọn gói
+    description VARCHAR(255),               -- Ví dụ: "Gói tháng tiêu chuẩn", "Gói VIP năm"
+    is_active BOOLEAN DEFAULT TRUE,         -- Để ẩn hiện gói cước
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(area_type, vehicle_type, duration_months) -- Đảm bảo không trùng gói
+    );
+
 -- ========================================
 -- 3. VEHICLE - Thông tin xe
 -- ========================================
 CREATE TABLE IF NOT EXISTS Vehicle (
     vehicle_id INT PRIMARY KEY AUTO_INCREMENT,
     plate_number VARCHAR(20) NOT NULL UNIQUE,
-    owner_name VARCHAR(100),
+    owner_name VARCHAR(30),
+    owner_phone VARCHAR(30),
     vehicle_type ENUM('CAR', 'MOTORBIKE', 'TRUCK', 'BICYCLE') DEFAULT 'CAR',
     brand VARCHAR(50),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -49,8 +62,9 @@ CREATE TABLE IF NOT EXISTS ParkingHistory (
     vehicle_id INT NOT NULL,
     entry_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     exit_time DATETIME NULL,
-    status ENUM('ACTIVE', 'COMPLETED') DEFAULT 'ACTIVE',
+    status ENUM('ACTIVE', 'COMPLETED', 'CANCELLED') DEFAULT 'ACTIVE',
     fee DECIMAL(10,2) DEFAULT 0,
+    paid BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (spot_id) REFERENCES parkingslot(spot_id),
     FOREIGN KEY (vehicle_id) REFERENCES Vehicle(vehicle_id),
     INDEX idx_active_spot (status, spot_id),
@@ -149,3 +163,13 @@ INSERT INTO SlotPricing (area_type, vehicle_type, hourly_rate, daily_rate, effec
 ('PREMIUM', 'CAR', 20000, 150000, '2025-11-17 08:00:00'),
 ('PREMIUM', 'MOTORBIKE', 7000, 50000, '2025-11-17 08:00:00'),
 ('PREMIUM', 'TRUCK', 35000, 250000, '2025-11-17 08:00:00');
+
+
+INSERT INTO RentPricing (area_type, vehicle_type, duration_months, price, description) VALUES
+-- Gói 1 tháng
+('STANDARD', 'CAR', 1, 1500000, 'Thuê tháng ô tô tiêu chuẩn'),
+('STANDARD', 'MOTORBIKE', 1, 120000, 'Thuê tháng xe máy tiêu chuẩn'),
+('PREMIUM', 'CAR', 1, 2000000, 'Thuê tháng ô tô VIP'),
+
+-- Gói 3 tháng (Có thể rẻ hơn chút nếu tính ra từng tháng)
+('STANDARD', 'CAR', 3, 4200000, 'Combo Quý ô tô (Tiết kiệm 300k)');

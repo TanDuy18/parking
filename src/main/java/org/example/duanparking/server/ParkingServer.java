@@ -18,10 +18,21 @@ public class ParkingServer  {
             String name = "ParkingService";
             ParkingImpl obj = new ParkingImpl(); // Đã extend UnicastedRemote rồi
             SyncServiceImpl syncObj = new SyncServiceImpl(obj);
-            Registry registry = LocateRegistry.createRegistry(port);
+            Registry registry;
+            try {
+                registry = LocateRegistry.getRegistry(port);
+                registry.list();
+                System.out.println("RMI registry đã tồn tại trên port " + port);
+            } catch (Exception e) {
+                System.out.println("Tạo RMI registry mới trên port " + port);
+                registry = LocateRegistry.createRegistry(port);
+            }
+
             registry.rebind(name, obj);
             registry.rebind("SyncService", syncObj);
             System.out.println("ParkingServer chạy trên port " + port + "!");
+
+            keepAlive();
 
             keepAlive();
         } catch (Exception e) {
