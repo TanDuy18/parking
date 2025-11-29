@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS parkingslot (
     row_index INT DEFAULT 0,
     col_index INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    version INT not null,
     INDEX idx_status_type (status, area_type)
 );
 

@@ -2,11 +2,11 @@ package org.example.duanparking.common.remote;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.util.ArrayList;
 import java.util.List;
 
+import org.example.duanparking.common.dto.ParkingHistoryDTO;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
-import org.example.duanparking.server.dao.ParkingSlotEntity;
+import org.example.duanparking.common.dto.VehicleDTO;
 
 public interface ParkingInterface extends Remote {
    /*
@@ -14,7 +14,7 @@ public interface ParkingInterface extends Remote {
    */
 
    List<ParkingSlotDTO> getAllSlots() throws RemoteException;
-   void updateSlotStatus(String spotId, String status,String plateName, String owner, String arriveTime, String brand, String infor) throws RemoteException;
+   int updateSlotStatus(ParkingSlotDTO slot) throws RemoteException;
    void registerClient(ClientCallback client) throws RemoteException; // Đăng ký client
    void updateSlotFromSync(ParkingSlotDTO slot) throws RemoteException;
    void takeVehicleOutFromSync(ParkingSlotDTO slot) throws RemoteException;

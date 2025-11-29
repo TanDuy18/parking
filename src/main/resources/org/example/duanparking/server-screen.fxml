@@ -36,7 +36,7 @@
             <PrefixSelectionChoiceBox fx:id="serverRmi" layoutX="355.0" layoutY="20.0" prefHeight="25.0" prefWidth="164.0" />
          </children>
       </AnchorPane>
-      <AnchorPane fx:id="outPane" layoutX="664.0" layoutY="562.0" prefHeight="275.0" prefWidth="661.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;">
+      <AnchorPane fx:id="outPane" layoutX="664.0" layoutY="562.0" prefHeight="275.0" prefWidth="661.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;" visible="false">
          <children>
             <Label layoutX="15.0" layoutY="22.0" prefHeight="21.0" prefWidth="110.0" text="Biển số xe        :">
                <font>
@@ -121,6 +121,11 @@
                </font>
             </TextField>
             <TextField fx:id="transaction_id_Field0" layoutX="135.0" layoutY="20.0" visible="false" />
+            <Label fx:id="outLabel" layoutX="373.0" layoutY="181.0" prefHeight="17.0" prefWidth="176.0" text="Label">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Label>
          </children>
       </AnchorPane>
       <AnchorPane layoutX="26.0" layoutY="557.0" prefHeight="339.0" prefWidth="590.0">
@@ -128,7 +133,7 @@
             <ImageView fx:id="cameraView" fitHeight="339.0" fitWidth="590.0" layoutX="26.0" layoutY="21.0" pickOnBounds="true" preserveRatio="true" />
          </children>
       </AnchorPane>
-      <AnchorPane fx:id="inPane" layoutX="664.0" layoutY="563.0" prefHeight="275.0" prefWidth="661.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;" visible="false">
+      <AnchorPane fx:id="inPane" layoutX="664.0" layoutY="563.0" prefHeight="275.0" prefWidth="661.0" style="-fx-background-color: #BADFDB; -fx-background-radius: 10px;">
          <children>
             <Label layoutX="16.0" layoutY="29.0" prefHeight="21.0" prefWidth="110.0" text="Biển số xe        :">
                <font>
@@ -153,7 +158,7 @@
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
-            <Label layoutX="15.0" layoutY="225.0" prefHeight="21.0" prefWidth="118.0" text="Thương hiệu      :">
+            <Label layoutX="15.0" layoutY="225.0" prefHeight="21.0" prefWidth="110.0" text="Thương hiệu    :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
@@ -173,7 +178,7 @@
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
-            <Label layoutX="14.0" layoutY="133.0" prefHeight="21.0" prefWidth="118.0" text="Tên                     :">
+            <Label layoutX="17.0" layoutY="133.0" prefHeight="21.0" prefWidth="110.0" text="Tên                   :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
@@ -186,12 +191,17 @@
                   <Font name="Arial" size="17.0" />
                </font>
             </TextField>
-            <Label layoutX="14.0" layoutY="177.0" prefHeight="21.0" prefWidth="118.0" text="Loại xe                :">
+            <Label layoutX="14.0" layoutY="177.0" prefHeight="21.0" prefWidth="110.0" text="Loại xe              :">
                <font>
                   <Font name="Calibri" size="17.0" />
                </font>
             </Label>
-            <ComboBox fx:id="InforField1" layoutX="130.0" layoutY="172.0" prefHeight="34.0" prefWidth="210.0" />
+            <ComboBox fx:id="InforField1" layoutX="126.0" layoutY="172.0" prefHeight="34.0" prefWidth="210.0" />
+            <Label fx:id="inLabel" layoutX="375.0" layoutY="180.0" text="Label">
+               <font>
+                  <Font name="Arial" size="14.0" />
+               </font>
+            </Label>
          </children>
       </AnchorPane>
       <Button fx:id="acceptBtn" layoutX="1142.0" layoutY="773.0" mnemonicParsing="false" onAction="#acceptHandle" prefHeight="36.0" prefWidth="170.0" text="Chấp nhận" />

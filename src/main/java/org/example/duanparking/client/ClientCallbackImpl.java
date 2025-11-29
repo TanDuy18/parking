@@ -3,6 +3,7 @@ package org.example.duanparking.client;
 import javafx.application.Platform;
 import org.example.duanparking.client.controller.ParkingGridManager;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
+import org.example.duanparking.common.dto.SlotStatusDTO;
 import org.example.duanparking.common.remote.ClientCallback;
 import org.example.duanparking.common.remote.ParkingInterface;
 
@@ -30,7 +31,7 @@ public class ClientCallbackImpl extends UnicastRemoteObject implements ClientCal
 
 
     @Override
-    public void onSlotUpdated(ParkingSlotDTO slot) throws RemoteException {
+    public void onSlotUpdated(SlotStatusDTO slot) throws RemoteException {
         Platform.runLater(() -> {
             try {
                 parkingGrid.updateSingleSlot(slot);

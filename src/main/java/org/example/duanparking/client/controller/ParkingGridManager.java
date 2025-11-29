@@ -5,6 +5,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
+import org.example.duanparking.common.dto.SlotStatusDTO;
 
 
 import java.rmi.RemoteException;
@@ -120,11 +121,11 @@ public class ParkingGridManager {
     }
 
 
-    public void updateSingleSlot(ParkingSlotDTO slot) throws RemoteException {
+    public void updateSingleSlot(SlotStatusDTO slot) throws RemoteException {
         Platform.runLater(() -> {
             Node node = parkingGrid.lookup("#slot" + slot.getSpotId());
             if (node instanceof AnchorPane slotPane) {
-                String color = getColor(slot.getStatus(), slot.getAreaType());
+                String color = getColor(slot.getStatus(), slot.getAreaStyle());
                 slotPane.setStyle("-fx-background-color: " + color + "; -fx-border-color: black;");
             }
         });
