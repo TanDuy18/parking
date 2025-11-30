@@ -11,6 +11,7 @@ public class ParkingSlotDTO implements Serializable {
     private String status;
     private int row, col;
     private String areaType;
+    private int version;
     private VehicleDTO vehicle;
     private ParkingHistoryDTO history;
 
@@ -73,5 +74,13 @@ public class ParkingSlotDTO implements Serializable {
 
     public void setHistory(ParkingHistoryDTO history) {
         this.history = history;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = version;
     }
 }

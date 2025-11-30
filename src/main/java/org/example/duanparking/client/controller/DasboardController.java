@@ -397,7 +397,7 @@ public class DasboardController implements Initializable {
 
                         if (check) {
                             Platform.runLater(() -> {
-                                acceptLabel.setText("Xe có biển số " + plateField0.getText() + "ở vị trí "
+                                inLabel.setText("Xe có biển số " + plateField0.getText() + "ở vị trí "
                                         + placeField0.getText() + " đã ra khỏi bãi");
                                 transaction_id_Field0.setText(" ");
                                 ownerField0.setText(" ");

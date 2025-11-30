@@ -1,6 +1,8 @@
 package org.example.duanparking.server;
 
 
+import org.example.duanparking.common.remote.SyncService;
+
 import java.net.InetAddress;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -9,6 +11,7 @@ import java.rmi.registry.Registry;
 public class ParkingServer  {
     public static void main(String[] args) {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 1099;
+        String serverName = args.length > 1 ? args[1] : "SERVER_DEFAULT";
         try {
             System.setProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostAddress());
 
@@ -16,8 +19,8 @@ public class ParkingServer  {
             System.setProperty("sun.rmi.dgc.server.gcInterval", "15000");
 
             String name = "ParkingService";
-            ParkingImpl obj = new ParkingImpl(); // Đã extend UnicastedRemote rồi
-            SyncServiceImpl syncObj = new SyncServiceImpl(obj);
+            ParkingImpl obj = new ParkingImpl(serverName); // Đã extend UnicastedRemote rồi
+            SyncServiceImpl syncObj = new SyncServiceImpl(obj, serverName);
             Registry registry;
             try {
                 registry = LocateRegistry.getRegistry(port);
@@ -32,7 +35,9 @@ public class ParkingServer  {
             registry.rebind("SyncService", syncObj);
             System.out.println("ParkingServer chạy trên port " + port + "!");
 
-            keepAlive();
+            SyncService other = (SyncService) LocateRegistry.getRegistry("192.168.1.20", 2099)
+                    .lookup("SyncService");
+            obj.addSyncTarget(other);
 
             keepAlive();
         } catch (Exception e) {

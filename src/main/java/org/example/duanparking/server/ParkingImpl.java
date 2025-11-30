@@ -1,9 +1,6 @@
 package org.example.duanparking.server;
 
-import org.example.duanparking.common.dto.ParkingHistoryDTO;
-import org.example.duanparking.common.dto.ParkingSlotDTO;
-import org.example.duanparking.common.dto.SlotStatusDTO;
-import org.example.duanparking.common.dto.VehicleDTO;
+import org.example.duanparking.common.dto.*;
 import org.example.duanparking.common.remote.ClientCallback;
 import org.example.duanparking.common.remote.ParkingInterface;
 import org.example.duanparking.common.remote.SyncService;
@@ -25,13 +22,12 @@ import java.util.concurrent.TimeUnit;
 
 public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface, Unreferenced {
     private Set<ClientCallback> clients = new HashSet<>();
-    private List<String> otherServers = List.of(
-            "rmi://192.168.19.128:1099/SyncService"
-    );
+    String serverName;
+    private List<SyncService> syncTargets = new ArrayList<>();
 
-    public ParkingImpl() throws java.rmi.RemoteException {
+    public ParkingImpl(String serverName) throws java.rmi.RemoteException {
         super();
-
+        this.serverName = serverName;
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
             clients.removeIf(client -> {
                 try {
@@ -44,17 +40,36 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             });
         }, 10, 15, TimeUnit.SECONDS);
     }
-
-    private void broadcast(ParkingSlotDTO slot) {
-        for(String url: otherServers) {
-            try {
-               SyncService remote = (SyncService) Naming.lookup(url); 
-                remote.syncVehicleIn(slot); 
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+    public String getServerName() {
+        return serverName;
     }
+    public void addSyncTarget(SyncService sync) {
+        syncTargets.add(sync);
+    }
+    private void broadcastVehicleIn(ParkingInEvent slot) {
+        new Thread(() -> {
+            for (SyncService s : syncTargets) {
+                try {
+                    s.syncVehicleIn(slot);
+                } catch (Exception e) {
+                    System.err.println("Sync IN lỗi: " + e.getMessage());
+                }
+            }
+        }).start();
+    }
+
+//    private void broadcastVehicleOut(ParkingSlotDTO slot) {
+//        for (String url : otherServers) {
+//            try {
+//                SyncService remote = (SyncService) Naming.lookup(url);
+//                remote.syncVehicleOut(slot);
+//            } catch (Exception e) {
+//                System.out.println("Sync OUT lỗi: " + url);
+//            }
+//        }
+//    }
+
+
 
     @Override
     public ArrayList<ParkingSlotDTO> getAllSlots() throws RemoteException {
@@ -120,11 +135,11 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     public int updateSlotStatus(ParkingSlotDTO slot1) throws RemoteException {
 
         int vehicleId;
-
+        String currentStatus ;
+        int currentVersion;
         try (Connection conn = DBManager.getConnection()) {
             conn.setAutoCommit(false);
-            String currentStatus ;
-            int currentVersion;
+
             try {
                 try (PreparedStatement lock = conn.prepareStatement("SELECT status,version FROM parkingslot WHERE spot_id = ?")) {
                     lock.setString(1, slot1.getSpotId());
@@ -218,12 +233,16 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                     }
                 }
                 conn.commit();
+                ParkingInEvent inEvent = new ParkingInEvent(slot1.getSpotId(),slot1.getVehicle().getPlateNumber()
+                ,slot1.getVehicle().getVehicleType(), slot1.getHistory().getEntryTime(),
+                        slot1.getVehicle().getOwner(), slot1.getVehicle().getBrand(), currentVersion, "SERVER_A");
+
 
                 new Thread(() -> {
                     for (ClientCallback client : clients) {
                         try {
                             SlotStatusDTO slot = new SlotStatusDTO(slot1.getSpotId(), slot1.getStatus());
-                            // broadcast(dto);
+                            broadcastVehicleIn(inEvent);
                             client.onSlotUpdated(slot);
                         } catch (RemoteException ex) {
                             System.err.println("Lỗi callback: " + ex.getMessage());
@@ -311,8 +330,6 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     public void ping() throws RemoteException {
 
     }
-
-
     @Override
     public ParkingSlotDTO getVehicleInfoForOut(String plateNumber) throws RemoteException {
         double fee = 0;
@@ -492,70 +509,78 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     }
 
     @Override
-    public void updateSlotFromSync(ParkingSlotDTO slot) {
-//        try (Connection conn = DBManager.getConnection()) {
-//            conn.setAutoCommit(false);
-//
-//
-//
-//            String sqlUpdate = "UPDATE parkingslot SET status=? WHERE spot_id=?";
-//            try (PreparedStatement ps = conn.prepareStatement(sqlUpdate)) {
-//                ps.setString(1, slot.getStatus());
-//                ps.setString(2, slot.getSpotId());
-//                int updated = ps.executeUpdate();
-//                System.out.println("SYNC UPDATE SLOT = " + updated);
-//            }
-//
-//            if (slot.getPlateNumber() != null) {
-//                int vehicleId;
-//
-//                // Check vehicle
-//                String checkV = "SELECT vehicle_id FROM vehicle WHERE plate_number=?";
-//                try (PreparedStatement check = conn.prepareStatement(checkV)) {
-//                    check.setString(1, slot.getPlateNumber());
-//                    ResultSet rs = check.executeQuery();
-//
-//                    if (rs.next()) {
-//                        vehicleId = rs.getInt(1);
-//                    } else {
-//                        String insV = "INSERT INTO vehicle(plate_number, owner_name, vehicle_type, brand) VALUES (?,?,?,?)";
-//                        try (PreparedStatement ins = conn.prepareStatement(insV, Statement.RETURN_GENERATED_KEYS)) {
-//                            ins.setString(1, slot.getPlateNumber());
-//                            ins.setString(2, slot.getOwnerName());
-//                            ins.setString(3, slot.getVehicleType());
-//                            ins.setString(4, slot.getBrand());
-//                            ins.executeUpdate();
-//                            ResultSet keys = ins.getGeneratedKeys();
-//                            keys.next();
-//                            vehicleId = keys.getInt(1);
-//                        }
-//                    }
-//                }
-//
-//                // Check history trước khi insert
-//                String checkH = "SELECT 1 FROM ParkingHistory WHERE spot_id=? AND status='ACTIVE'";
-//                try (PreparedStatement ch = conn.prepareStatement(checkH)) {
-//                    ch.setString(1, slot.getSpotId());
-//                    ResultSet rs = ch.executeQuery();
-//
-//                    if (!rs.next()) {
-//                        String insertH = "INSERT INTO ParkingHistory(spot_id, vehicle_id, entry_time, status, fee) VALUES (?, ?, ?, 'ACTIVE', ?)";
-//                        try (PreparedStatement ph = conn.prepareStatement(insertH)) {
-//                            ph.setString(1, slot.getSpotId());
-//                            ph.setInt(2, vehicleId);
-//                            ph.setTimestamp(3, Timestamp.valueOf(time));
-//                            ph.setDouble(4, slot.getFee());
-//                            ph.executeUpdate();
-//                        }
-//                    }
-//                }
-//            }
-//
-//            conn.commit();
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
+    public void takeVehicleInFromSync(ParkingInEvent slot) throws RemoteException {
+        try (Connection conn = DBManager.getConnection()) {
+            conn.setAutoCommit(false);
+
+            int dbVersion;
+
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT version FROM parkingslot WHERE spot_id=? FOR UPDATE")) {
+                ps.setString(1, slot.getSpotId());
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) return;
+                dbVersion = rs.getInt(1);
+            }
+
+            if (slot.getVersion() <= dbVersion) {
+                conn.rollback();
+                return;
+            }
+            int vehicleId;
+            try(PreparedStatement ps = conn.prepareStatement(
+                    "SELECT vehicle_id FROM vehicle WHERE plate_number=?")){
+                ps.setString(1, slot.getPlateNumber());
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()){
+                    vehicleId = rs.getInt(1);
+                } else {
+                    try (PreparedStatement insertV = conn.prepareStatement(
+                            "INSERT INTO vehicle(plate_number, owner_name, vehicle_type, brand) VALUES (?,?,?,?)",
+                            Statement.RETURN_GENERATED_KEYS)) {
+
+                        insertV.setString(1, slot.getPlateNumber());
+                        insertV.setString(2, slot.getOwnerName());
+                        insertV.setString(3, slot.getVehicleType());
+                        insertV.setString(4, slot.getBrand());
+                        insertV.executeUpdate();
+
+                        ResultSet keys = insertV.getGeneratedKeys();
+                        keys.next();
+                        vehicleId = keys.getInt(1);
+                    }
+                }
+            }
+
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE parkingslot SET status='OCCUPIED', version=? WHERE spot_id=?")) {
+                ps.setInt(1, slot.getVersion());
+                ps.setString(2, slot.getSpotId());
+                ps.executeUpdate();
+            }
+
+            // update history
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO parkinghistory(spot_id, vehicle_id, entry_time, status) VALUES (?,?,?, 'ACTIVE')")) {
+                ps.setString(1, slot.getSpotId());
+                ps.setInt(2, vehicleId);
+                ps.setObject(3, slot.getEntryTime());
+                ps.executeUpdate();
+            }
+            new Thread(() -> {
+                for (ClientCallback client : clients) {
+                    try {
+                        SlotStatusDTO slot1 = new SlotStatusDTO(slot.getSpotId(), "OCCUPIED");
+                        client.onSlotUpdated(slot1);
+                    } catch (RemoteException ex) {
+                        System.err.println("Lỗi callback: " + ex.getMessage());
+                    }
+                }
+            }).start();
+            conn.commit();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
