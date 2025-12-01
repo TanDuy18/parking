@@ -13,7 +13,7 @@ public class SyncServiceImpl extends UnicastRemoteObject implements SyncService 
 
     public SyncServiceImpl(ParkingImpl parkingImpl, String thisServer) throws RemoteException {
         this.parkingImpl = parkingImpl;
-        this.thisServer = System.getProperty("server.name", "SERVER_A");
+        this.thisServer = thisServer;
     }
 
     @Override

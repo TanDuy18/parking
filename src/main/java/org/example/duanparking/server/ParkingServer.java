@@ -35,9 +35,12 @@ public class ParkingServer  {
             registry.rebind("SyncService", syncObj);
             System.out.println("ParkingServer chạy trên port " + port + "!");
 
-            SyncService other = (SyncService) LocateRegistry.getRegistry("192.168.1.20", 2099)
+            SyncService other = (SyncService) LocateRegistry.getRegistry("192.168.19.128", 2099)
                     .lookup("SyncService");
             obj.addSyncTarget(other);
+
+
+            System.out.println("Đã kết nối tới serverB");
 
             keepAlive();
         } catch (Exception e) {

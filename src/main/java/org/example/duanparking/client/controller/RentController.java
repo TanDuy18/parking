@@ -10,13 +10,18 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import org.example.duanparking.common.TimeSpinner;
+import org.example.duanparking.common.dto.ParkingSlotDTO;
+import org.example.duanparking.common.remote.ParkingInterface;
 
 import java.net.URL;
+import java.rmi.RemoteException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.ResourceBundle;
 
 public class RentController implements Initializable {
@@ -32,11 +37,20 @@ public class RentController implements Initializable {
     @FXML private RadioButton rentByKhac;
     @FXML private AnchorPane rentByBuoiPane;
     @FXML private AnchorPane rentByKhacPane;
+    @FXML private GridPane parkingGrid;
 
     DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private ParkingInterface parkingInterface;
+    private ParkingGridManager parkingGridManager;
 
 
+    public GridPane getParkingGrid() {
+        return parkingGrid;
+    }
 
+    public void setParkingGridManager(ParkingGridManager manager) {
+        this.parkingGridManager = manager;
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -62,6 +76,7 @@ public class RentController implements Initializable {
         });
         rentByBuoiPane.setVisible(false);rentByBuoiPane.setDisable(true);
         rentByKhacPane.setVisible(false);rentByKhacPane.setDisable(true);
+
     }
 
 

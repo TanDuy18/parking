@@ -235,7 +235,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 conn.commit();
                 ParkingInEvent inEvent = new ParkingInEvent(slot1.getSpotId(),slot1.getVehicle().getPlateNumber()
                 ,slot1.getVehicle().getVehicleType(), slot1.getHistory().getEntryTime(),
-                        slot1.getVehicle().getOwner(), slot1.getVehicle().getBrand(), currentVersion, "SERVER_A");
+                        slot1.getVehicle().getOwner(), slot1.getVehicle().getBrand(), currentVersion, this.getServerName());
 
 
                 new Thread(() -> {

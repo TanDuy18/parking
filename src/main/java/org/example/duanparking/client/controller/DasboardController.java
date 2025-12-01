@@ -19,6 +19,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.control.Label;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -27,17 +28,17 @@ import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.dto.VehicleDTO;
 import org.example.duanparking.common.remote.ClientCallback;
 import org.example.duanparking.common.remote.ParkingInterface;
-import org.example.duanparking.server.dao.ParkingSlotEntity;
+
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
+
 import java.net.URL;
 import java.rmi.RemoteException;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -369,8 +370,10 @@ public class DasboardController implements Initializable {
                             int i = parkingInterface.updateSlotStatus(slot);
                             switch (i) {
                                 case 0:
-                                    inLabel.setText("Xe biển số "+ plateField1.getText() +" đã lấy vị trí "+ placeField1.getText());
-                                    placeField1.setText(" "); arrivalTimeField1.setText(" "); plateField1.setText(" "); brandField1.setText(" "); ownerField1.setText(" ");
+                                    Platform.runLater(() -> {
+                                        inLabel.setText("Xe biển số "+ plateField1.getText() +" đã lấy vị trí "+ placeField1.getText());
+                                        placeField1.setText(" "); arrivalTimeField1.setText(" "); plateField1.setText(" "); brandField1.setText(" "); ownerField1.setText(" ");
+                                    });
                                     break;
                                 case 1:
                                     Platform.runLater(() -> openNotificationScreen("Slot đang được thuê"));
@@ -424,6 +427,14 @@ public class DasboardController implements Initializable {
             Parent root = loader.load();
 
             Scene newScene = new Scene(root);
+
+            RentController newRentController = loader.getController();
+
+            ParkingGridManager gridManager = new ParkingGridManager(newRentController.getParkingGrid());
+
+            newRentController.setParkingGridManager(gridManager);
+
+            RmiClientManager.getInstance().setGridManager(gridManager);
 
             Stage currentStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
 
