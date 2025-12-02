@@ -11,10 +11,10 @@ import java.rmi.registry.Registry;
 public class ParkingServer  {
     public static void main(String[] args) {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 1099;
-        String serverName = args.length > 1 ? args[1] : "SERVER_DEFAULT";
+        String serverName = args.length > 1 ? args[1] : "SERVER_A";
         try {
-            System.setProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostAddress());
 
+            System.setProperty("java.rmi.server.hostname", "172.20.10.3");
             System.setProperty("sun.rmi.dgc.client.gcInterval", "15000"); // 15s
             System.setProperty("sun.rmi.dgc.server.gcInterval", "15000");
 
@@ -35,7 +35,7 @@ public class ParkingServer  {
             registry.rebind("SyncService", syncObj);
             System.out.println("ParkingServer chạy trên port " + port + "!");
 
-            SyncService other = (SyncService) LocateRegistry.getRegistry("192.168.19.128", 2099)
+            SyncService other = (SyncService) LocateRegistry.getRegistry("172.20.10.2", 1099)
                     .lookup("SyncService");
             obj.addSyncTarget(other);
 

@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 public class ParkingInEvent implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final String spotId;  // Dang immutable ko thay đổi được
     private final String plateNumber;
     private final String vehicleType;
@@ -56,5 +57,19 @@ public class ParkingInEvent implements Serializable {
 
     public String getSourceServer() {
         return sourceServer;
+    }
+
+    @Override
+    public String toString() {
+        return "ParkingInEvent{" +
+                "spotId='" + spotId + '\'' +
+                ", plateNumber='" + plateNumber + '\'' +
+                ", vehicleType='" + vehicleType + '\'' +
+                ", entryTime=" + entryTime +
+                ", ownerName='" + ownerName + '\'' +
+                ", brand='" + brand + '\'' +
+                ", version=" + version +
+                ", sourceServer='" + sourceServer + '\'' +
+                '}';
     }
 }

@@ -1,6 +1,7 @@
 package org.example.duanparking.server;
 
 import org.example.duanparking.common.dto.ParkingInEvent;
+import org.example.duanparking.common.dto.ParkingOutEvent;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.remote.SyncService;
 
@@ -20,17 +21,16 @@ public class SyncServiceImpl extends UnicastRemoteObject implements SyncService 
     public void syncVehicleIn(ParkingInEvent slot) throws RemoteException {
         if (slot == null) return;
         if (thisServer.equals(slot.getSourceServer())) {
-            // event từ chính nó — bỏ qua
             return;
         }
-        // gửi vào ParkingImpl để xử lý (không broadcast lại)
+        System.out.println(slot.toString());
         parkingImpl.takeVehicleInFromSync(slot);
 
     }
 
     @Override
-    public void syncVehicleOut(ParkingSlotDTO slot) throws RemoteException {
-        System.out.println("Nhận OUT từ server khác: " + slot.getSpotId());
+    public void syncVehicleOut(ParkingOutEvent slot) throws RemoteException {
+        System.out.println("Nhận OUT từ server khác: " + slot.getPlateNumber());
         try {
             parkingImpl.takeVehicleOutFromSync(slot);
         } catch (Exception e) {

@@ -46,6 +46,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     public void addSyncTarget(SyncService sync) {
         syncTargets.add(sync);
     }
+
     private void broadcastVehicleIn(ParkingInEvent slot) {
         new Thread(() -> {
             for (SyncService s : syncTargets) {
@@ -58,16 +59,17 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         }).start();
     }
 
-//    private void broadcastVehicleOut(ParkingSlotDTO slot) {
-//        for (String url : otherServers) {
-//            try {
-//                SyncService remote = (SyncService) Naming.lookup(url);
-//                remote.syncVehicleOut(slot);
-//            } catch (Exception e) {
-//                System.out.println("Sync OUT lỗi: " + url);
-//            }
-//        }
-//    }
+    private void broadcastVehicleOut(ParkingOutEvent slot) {
+        new Thread(() -> {
+            for (SyncService s : syncTargets) {
+                try {
+                    s.syncVehicleOut(slot);
+                } catch (Exception e) {
+                    System.err.println("Sync IN lỗi: " + e.getMessage());
+                }
+            }
+        }).start();
+    }
 
 
 
@@ -235,7 +237,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 conn.commit();
                 ParkingInEvent inEvent = new ParkingInEvent(slot1.getSpotId(),slot1.getVehicle().getPlateNumber()
                 ,slot1.getVehicle().getVehicleType(), slot1.getHistory().getEntryTime(),
-                        slot1.getVehicle().getOwner(), slot1.getVehicle().getBrand(), currentVersion, this.getServerName());
+                        slot1.getVehicle().getOwner(), slot1.getVehicle().getBrand(), currentVersion + 1, this.getServerName());
 
 
                 new Thread(() -> {
@@ -472,8 +474,10 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             }
 
             SlotStatusDTO dto = new SlotStatusDTO(slot.getSpotId(),"FREE",slot.getAreaType());
+            ParkingOutEvent outEvent = new ParkingOutEvent(slot.getSpotId(),slot.getVehicle().getPlateNumber(),slot.getHistory().getTransactionId(),slot.getHistory().getExitTime(),slot.getHistory().getFee(), this.getServerName());
 
 
+            broadcastVehicleOut(outEvent);
             for (ClientCallback client : clients) {
                 try {
                     client.onSlotUpdated(dto);
@@ -586,44 +590,89 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
 
     @Override
-    public void takeVehicleOutFromSync(ParkingSlotDTO slot) {
-//        try (Connection conn = DBManager.getConnection()) {
-//            conn.setAutoCommit(false);
-//
-//            // Update ParkingHistory
-//            String updateHistory = "UPDATE ParkingHistory SET exit_time=?, fee=?, status='COMPLETED' WHERE transaction_id=?";
-//            try (PreparedStatement ps = conn.prepareStatement(updateHistory)) {
-//                ps.setString(1, slot.getExitTime());
-//                ps.setDouble(2, slot.getFee());
-//                ps.setInt(3, slot.getTransaction_id());
-//                ps.executeUpdate();
-//            }
-//
-//            // Update slot status
-//            try (PreparedStatement ps = conn.prepareStatement(
-//                    "UPDATE parkingslot SET status='FREE' WHERE spot_id=?")) {
-//                ps.setString(1, slot.getSpotId());
-//                ps.executeUpdate();
-//            }
-//
-//            conn.commit();
-//
-//            // Update GUI client
-//            ParkingSlotDTO dto = new ParkingSlotDTO();
-//            dto.setSpotId(slot.getSpotId());
-//            dto.setStatus("FREE");
-//
-//            for (ClientCallback client : clients) {
-//                try {
-//                    client.onSlotUpdated(dto);
-//                } catch (Exception e) {
-//                    System.out.println("Client lỗi callback OUT sync: " + e.getMessage());
-//                }
-//            }
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
+    public void takeVehicleOutFromSync(ParkingOutEvent slot) throws RemoteException {
+        if (slot.getSourceServer().equals(this.getServerName())) {
+            System.out.println("Bỏ qua OUT sự kiện của chính server mình");
+            return;
+        }
+
+        try (Connection conn = DBManager.getConnection()) {
+            conn.setAutoCommit(false);
+            String areaStyle = null;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT area_style FROM parkingslot WHERE spot_id = ?")) {
+                ps.setString(1, slot.getSpotId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        areaStyle = rs.getString("area_style");
+                    }
+                }
+            }
+
+
+            String updateHistory = """
+            UPDATE parkinghistory 
+            SET exit_time=?, fee=?, status='COMPLETED'
+            WHERE transaction_id=? AND status='ACTIVE'
+        """;
+
+            try (PreparedStatement ps = conn.prepareStatement(updateHistory)) {
+                ps.setObject(1, slot.getExitTime());
+                ps.setDouble(2, slot.getFee());
+                ps.setInt(3, slot.getTransactionId());
+                ps.executeUpdate();
+            }
+
+            // 4. Giải phóng chỗ đậu
+            String freeSlotSql = "UPDATE parkingslot SET status='FREE' WHERE spot_id=?";
+            try (PreparedStatement ps = conn.prepareStatement(freeSlotSql)) {
+                ps.setString(1, slot.getSpotId());
+                ps.executeUpdate();
+            }
+
+            // === 3. Insert Payment (nhưng kiểm tra trùng trước) ===
+            String checkPayment = "SELECT payment_id FROM payment WHERE transaction_id=?";
+            boolean hasPayment = false;
+
+            try (PreparedStatement ps = conn.prepareStatement(checkPayment)) {
+                ps.setInt(1, slot.getTransactionId());
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) hasPayment = true;
+            }
+
+            if (!hasPayment) {
+                System.out.println("SYNC OUT: Chưa có Payment => INSERT");
+                String insertPayment = """
+                INSERT INTO payment(transaction_id, amount, payment_type, payment_method)
+                VALUES (?, ?, 'VISITOR', 'TRANSFER')
+            """;
+
+                try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
+                    ps.setInt(1, slot.getTransactionId());
+                    ps.setDouble(2, slot.getFee());
+                    ps.executeUpdate();
+                }
+            } else {
+                System.out.println("SYNC OUT: Payment đã tồn tại => bỏ qua");
+            }
+
+
+            conn.commit();
+
+            // 5. Gửi update về client UI
+            SlotStatusDTO dto = new SlotStatusDTO(slot.getSpotId(), "FREE", areaStyle);
+            for (ClientCallback client : clients) {
+                try {
+                    client.onSlotUpdated(dto);
+                } catch (Exception ignore) {
+                    System.out.println("Client lỗi callback OUT SYNC");
+                }
+            }
+
+            System.out.println("Đã SYNC OUT thành công cho " + slot.getPlateNumber());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 

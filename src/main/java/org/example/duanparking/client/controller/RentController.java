@@ -1,5 +1,6 @@
 package org.example.duanparking.client.controller;
 
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -11,57 +12,79 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import org.example.duanparking.common.TimeSpinner;
-import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.remote.ParkingInterface;
 
 import java.net.URL;
-import java.rmi.RemoteException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.ResourceBundle;
 
 public class RentController implements Initializable {
     @FXML private TimeSpinner endTimeSpinner;
     @FXML private TimeSpinner startTimeSpinner;
-    @FXML private ImageView imageFrom;
-    @FXML private ImageView imageTo;
     @FXML private Button returnBtn;
-    @FXML private Label fromValue;
-    @FXML private Label toValue;
     @FXML private ComboBox<String> buoi;
     @FXML private RadioButton rentByBuoi;
     @FXML private RadioButton rentByKhac;
     @FXML private AnchorPane rentByBuoiPane;
     @FXML private AnchorPane rentByKhacPane;
-    @FXML private GridPane parkingGrid;
+    private GridPane parkingGrid;
+    private ParkingGridManager parkingGridManager;
+    @FXML private ScrollPane gridWrapper;
 
     DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private ParkingInterface parkingInterface;
-    private ParkingGridManager parkingGridManager;
 
 
-    public GridPane getParkingGrid() {
-        return parkingGrid;
+
+    public ParkingGridManager getParkingGridManager() {
+        return parkingGridManager;
     }
 
-    public void setParkingGridManager(ParkingGridManager manager) {
-        this.parkingGridManager = manager;
+    private void runGridPane() {
+        parkingGrid = new GridPane();
+        parkingGrid.setHgap(5);
+        parkingGrid.setVgap(5);
+
+        parkingGrid.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        gridWrapper.setContent(parkingGrid);
+
+
+        parkingGridManager = new ParkingGridManager(parkingGrid);
+    }
+    private void loadParkingData() {
+        try {
+            ParkingInterface service = RmiClientManager.getInstance().getParkingInterface();
+            var slots = service.getAllSlots();
+
+            parkingGridManager.updateGrid(slots);
+
+            // đăng ký callback để server push sự kiện
+            var cb = RmiClientManager.getInstance().getClientCallBack();
+            service.registerClient(cb);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        buoi.getItems().addAll("MORNING", "AFTERNOON", "EVENING");
+        Platform.runLater(() -> {
+            runGridPane();
+            loadParkingData();
+        });
+        buoi.getItems().addAll("MORNING", "AFTERNOON", "EVENING", "ALL DAY");
         buoi.valueProperty().addListener((obs, oldVal, newVal) -> getTime());
 
         startTimeSpinner.getValueFactory().setValue(LocalTime.of(0, 0));
         endTimeSpinner.getValueFactory().setValue(LocalTime.of(0, 0));
 
-        fromValue.setText(LocalDate.now().format(dtf));
-        toValue.setText(getMoreDay(LocalDate.now()).format(dtf));
+
 
         ToggleGroup group = new ToggleGroup();
         rentByBuoi.setToggleGroup(group);
@@ -72,7 +95,7 @@ public class RentController implements Initializable {
         });
 
         rentByKhac.setOnAction(event -> {
-           rentByKhacPane.setVisible(true);rentByKhacPane.setDisable(false);rentByBuoiPane.setDisable(true);rentByBuoiPane.setVisible(false);
+            rentByKhacPane.setVisible(true);rentByKhacPane.setDisable(false);rentByBuoiPane.setDisable(true);rentByBuoiPane.setVisible(false);
         });
         rentByBuoiPane.setVisible(false);rentByBuoiPane.setDisable(true);
         rentByKhacPane.setVisible(false);rentByKhacPane.setDisable(true);
