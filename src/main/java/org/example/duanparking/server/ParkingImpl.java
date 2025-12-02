@@ -658,7 +658,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
             conn.commit();
 
-            // 5. Gửi update về client UI
+            broadcastVehicleOut(slot);
             SlotStatusDTO dto = new SlotStatusDTO(slot.getSpotId(), "FREE", areaStyle);
             for (ClientCallback client : clients) {
                 try {
