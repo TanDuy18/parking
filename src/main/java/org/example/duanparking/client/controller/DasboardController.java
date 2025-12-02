@@ -430,11 +430,7 @@ public class DasboardController implements Initializable {
 
             RentController newRentController = loader.getController();
 
-            ParkingGridManager gridManager = new ParkingGridManager(newRentController.getParkingGrid());
-
-            newRentController.setParkingGridManager(gridManager);
-
-            RmiClientManager.getInstance().setGridManager(gridManager);
+            RmiClientManager.getInstance().setGridManager(newRentController.getParkingGridManager());
 
             Stage currentStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
 

@@ -38,11 +38,11 @@ public class ParkingGridManager {
 
         if (slots.isEmpty()) return;
 
-        // ✅ Tính max hàng/cột
+
         int maxRows = slots.stream().mapToInt(ParkingSlotDTO::getRow).max().orElse(0) + 1;
         int maxCols = slots.stream().mapToInt(ParkingSlotDTO::getCol).max().orElse(0) + 1;
 
-        // ✅ Cấu hình kích thước ô cố định
+
         for (int i = 0; i < maxCols; i++) {
             ColumnConstraints col = new ColumnConstraints();
             col.setPrefWidth(100);
@@ -59,13 +59,13 @@ public class ParkingGridManager {
             parkingGrid.getRowConstraints().add(row);
         }
 
-        // ✅ Map vị trí -> slot
+
         Map<String, ParkingSlotDTO> slotMap = new HashMap<>();
         for (ParkingSlotDTO slot : slots) {
             slotMap.put(slot.getRow() + "," + slot.getCol(), slot);
         }
 
-        // ✅ Tạo đủ tất cả các ô, kể cả trống
+
         for (int r = 0; r < maxRows; r++) {
             for (int c = 0; c < maxCols; c++) {
                 ParkingSlotDTO slot = slotMap.get(r + "," + c);
