@@ -42,4 +42,16 @@ public class ParkingOutEvent implements Serializable{
     public String getSpotId() {
         return spotId;
     }
+
+    @Override
+    public String toString() {
+        return "ParkingOutEvent{" +
+                "spotId='" + spotId + '\'' +
+                ", plateNumber='" + plateNumber + '\'' +
+                ", transactionId=" + transactionId +
+                ", exitTime=" + exitTime +
+                ", fee=" + fee +
+                ", sourceServer='" + sourceServer + '\'' +
+                '}';
+    }
 }
