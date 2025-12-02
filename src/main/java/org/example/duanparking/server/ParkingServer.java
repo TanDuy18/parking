@@ -4,6 +4,7 @@ package org.example.duanparking.server;
 import org.example.duanparking.common.remote.SyncService;
 
 import java.net.InetAddress;
+import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
@@ -12,34 +13,45 @@ public class ParkingServer  {
     public static void main(String[] args) {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 1099;
         String serverName = args.length > 1 ? args[1] : "SERVER_A";
+        String myIp = args.length > 2 ? args[2] : "192.168.1.8";
+        String otherIp = args.length > 3 ? args[3] : "192.168.1.11";
         try {
-            System.setProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostName());
-            //System.setProperty("java.rmi.server.hostname", "172.20.10.3");
+            // System.setProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostName());
+            System.setProperty("java.rmi.server.hostname", "192.168.1.8");
             System.setProperty("sun.rmi.dgc.client.gcInterval", "15000"); // 15s
             System.setProperty("sun.rmi.dgc.server.gcInterval", "15000");
 
             String name = "ParkingService";
             ParkingImpl obj = new ParkingImpl(serverName); // Đã extend UnicastedRemote rồi
             SyncServiceImpl syncObj = new SyncServiceImpl(obj, serverName);
-            Registry registry;
+
             try {
-                registry = LocateRegistry.getRegistry(port);
-                registry.list();
-                System.out.println("RMI registry đã tồn tại trên port " + port);
-            } catch (Exception e) {
+                LocateRegistry.createRegistry(port);
                 System.out.println("Tạo RMI registry mới trên port " + port);
-                registry = LocateRegistry.createRegistry(port);
+            } catch (Exception ex) {
+                System.out.println("Registry đã tồn tại trên port " + port + " (hoặc tạo thất bại): " + ex.getMessage());
             }
 
-            registry.rebind(name, obj);
-            registry.rebind("SyncService", syncObj);
+            Naming.rebind("rmi://" + myIp + ":" + port + "/" + name, obj);
+            Naming.rebind("rmi://" + myIp + ":" + port + "/SyncService", syncObj);
+            System.out.println("ParkingServer chạy trên " + myIp + ":" + port);
             System.out.println("ParkingServer chạy trên port " + port + "!");
 
-//            SyncService other = (SyncService) LocateRegistry.getRegistry("172.20.10.2", 1099)
-//                    .lookup("SyncService");
-//            obj.addSyncTarget(other);
-
-
+            final int MAX_TRIES = 10;
+            for (int i = 1; i <= MAX_TRIES; i++) {
+                try {
+                    String remoteUrl = "rmi://" + otherIp + ":" + port + "/SyncService";
+                    System.out.println("Thử kết nối tới " + remoteUrl + " (attempt " + i + ")");
+                    SyncService other = (SyncService) Naming.lookup(remoteUrl);
+                    obj.addSyncTarget(other);
+                    System.out.println("Đã kết nối tới server " + otherIp);
+                    break;
+                } catch (Exception ex) {
+                    System.err.println("Không kết nối được tới " + otherIp + " (attempt " + i + "): " + ex.getMessage());
+                    Thread.sleep(2000);
+                    if (i == MAX_TRIES) System.err.println("Hết lần thử, sẽ tiếp tục chạy và chờ manual reconnect");
+                }
+            }
             System.out.println("Đã kết nối tới serverB");
 
             keepAlive();
