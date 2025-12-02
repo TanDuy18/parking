@@ -599,11 +599,11 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         try (Connection conn = DBManager.getConnection()) {
             conn.setAutoCommit(false);
             String areaStyle = null;
-            try (PreparedStatement ps = conn.prepareStatement("SELECT area_style FROM parkingslot WHERE spot_id = ?")) {
+            try (PreparedStatement ps = conn.prepareStatement("SELECT area_type FROM parkingslot WHERE spot_id = ?")) {
                 ps.setString(1, slot.getSpotId());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        areaStyle = rs.getString("area_style");
+                        areaStyle = rs.getString("area_type");
                     }
                 }
             }
