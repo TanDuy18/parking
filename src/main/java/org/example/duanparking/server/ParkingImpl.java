@@ -244,7 +244,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                     for (ClientCallback client : clients) {
                         try {
                             SlotStatusDTO slot = new SlotStatusDTO(slot1.getSpotId(), slot1.getStatus());
-                            broadcastVehicleIn(inEvent);
+                            // broadcastVehicleIn(inEvent);
                             client.onSlotUpdated(slot);
                         } catch (RemoteException ex) {
                             System.err.println("Lỗi callback: " + ex.getMessage());
@@ -479,7 +479,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             ParkingOutEvent outEvent = new ParkingOutEvent(slot.getSpotId(),slot.getVehicle().getPlateNumber(),slot.getHistory().getTransactionId(),slot.getHistory().getExitTime(),slot.getHistory().getFee(), this.getServerName());
 
             System.out.println(outEvent.toString());
-            broadcastVehicleOut(outEvent);
+            // broadcastVehicleOut(outEvent);
             for (ClientCallback client : clients) {
                 try {
                     client.onSlotUpdated(dto);
