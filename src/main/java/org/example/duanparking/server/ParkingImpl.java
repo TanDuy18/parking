@@ -473,6 +473,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                 ps.executeUpdate();
             }
 
+            conn.commit();
+
             SlotStatusDTO dto = new SlotStatusDTO(slot.getSpotId(),"FREE",slot.getAreaType());
             ParkingOutEvent outEvent = new ParkingOutEvent(slot.getSpotId(),slot.getVehicle().getPlateNumber(),slot.getHistory().getTransactionId(),slot.getHistory().getExitTime(),slot.getHistory().getFee(), this.getServerName());
 
@@ -590,90 +592,86 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
 
     @Override
-    public void takeVehicleOutFromSync(ParkingOutEvent slot) throws RemoteException {
-        if (slot.getSourceServer().equals(this.getServerName())) {
+    public void takeVehicleOutFromSync(ParkingOutEvent ev) throws RemoteException {
+        if (ev == null) return;
+        if (ev.getSourceServer().equals(this.getServerName())) {
             System.out.println("Bỏ qua OUT sự kiện của chính server mình");
             return;
         }
 
         try (Connection conn = DBManager.getConnection()) {
             conn.setAutoCommit(false);
-            String areaStyle = null;
+
+            // lấy area_type (chỉ để UI)
+            String areaType = null;
             try (PreparedStatement ps = conn.prepareStatement("SELECT area_type FROM parkingslot WHERE spot_id = ?")) {
-                ps.setString(1, slot.getSpotId());
+                ps.setString(1, ev.getSpotId());
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        areaStyle = rs.getString("area_type");
-                    }
+                    if (rs.next()) areaType = rs.getString("area_type");
                 }
             }
 
-
+            // update parkinghistory
             String updateHistory = """
             UPDATE parkinghistory 
             SET exit_time=?, fee=?, status='COMPLETED'
             WHERE transaction_id=? AND status='ACTIVE'
         """;
-
+            int updated;
             try (PreparedStatement ps = conn.prepareStatement(updateHistory)) {
-                ps.setObject(1, slot.getExitTime());
-                ps.setDouble(2, slot.getFee());
-                ps.setInt(3, slot.getTransactionId());
+                ps.setObject(1, ev.getExitTime());
+                ps.setDouble(2, ev.getFee());
+                ps.setInt(3, ev.getTransactionId());
+                updated = ps.executeUpdate();
+            }
+
+            if (updated == 0) {
+
+                System.out.println("SYNC OUT: UPDATE history không ảnh hưởng (transaction có thể không tồn tại hoặc đã COMMITTED). transaction=" + ev.getTransactionId());
+
+            }
+
+            // free slot
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE parkingslot SET status='FREE' WHERE spot_id=?")) {
+                ps.setString(1, ev.getSpotId());
                 ps.executeUpdate();
             }
 
-            // 4. Giải phóng chỗ đậu
-            String freeSlotSql = "UPDATE parkingslot SET status='FREE' WHERE spot_id=?";
-            try (PreparedStatement ps = conn.prepareStatement(freeSlotSql)) {
-                ps.setString(1, slot.getSpotId());
-                ps.executeUpdate();
-            }
-
-            // === 3. Insert Payment (nhưng kiểm tra trùng trước) ===
-            String checkPayment = "SELECT payment_id FROM payment WHERE transaction_id=?";
-            boolean hasPayment = false;
-
-            try (PreparedStatement ps = conn.prepareStatement(checkPayment)) {
-                ps.setInt(1, slot.getTransactionId());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) hasPayment = true;
-            }
-
-            if (!hasPayment) {
-                System.out.println("SYNC OUT: Chưa có Payment => INSERT");
-                String insertPayment = """
-                INSERT INTO payment(transaction_id, amount, payment_type, payment_method)
-                VALUES (?, ?, 'VISITOR', 'TRANSFER')
-            """;
-
-                try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
-                    ps.setInt(1, slot.getTransactionId());
-                    ps.setDouble(2, slot.getFee());
-                    ps.executeUpdate();
+            // payment check + insert nếu chưa có
+            try (PreparedStatement ps = conn.prepareStatement("SELECT payment_id FROM payment WHERE transaction_id=?")) {
+                ps.setInt(1, ev.getTransactionId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        try (PreparedStatement ins = conn.prepareStatement(
+                                "INSERT INTO payment(transaction_id, amount, payment_type, payment_method) VALUES (?, ?, 'VISITOR', 'TRANSFER')")) {
+                            ins.setInt(1, ev.getTransactionId());
+                            ins.setDouble(2, ev.getFee());
+                            ins.executeUpdate();
+                        }
+                    } else {
+                        // payment already exists
+                    }
                 }
-            } else {
-                System.out.println("SYNC OUT: Payment đã tồn tại => bỏ qua");
             }
-
 
             conn.commit();
 
-            broadcastVehicleOut(slot);
-            SlotStatusDTO dto = new SlotStatusDTO(slot.getSpotId(), "FREE", areaStyle);
+            // Không broadcast lại — tránh loop
+            // Cập nhật UI clients
+            SlotStatusDTO dto = new SlotStatusDTO(ev.getSpotId(), "FREE", areaType);
             for (ClientCallback client : clients) {
                 try {
                     client.onSlotUpdated(dto);
-                } catch (Exception ignore) {
-                    System.out.println("Client lỗi callback OUT SYNC");
+                } catch (Exception ex) {
+                    System.out.println("Client lỗi callback OUT SYNC: " + ex.getMessage());
                 }
             }
 
-            System.out.println("Đã SYNC OUT thành công cho " + slot.getPlateNumber());
+            System.out.println("Đã SYNC OUT thành công cho transaction=" + ev.getTransactionId() + " spot=" + ev.getSpotId());
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            throw new RemoteException("Lỗi khi xử lý SYNC OUT: " + e.getMessage());
         }
     }
-
 
 }

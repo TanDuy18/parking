@@ -30,6 +30,11 @@ public class SyncServiceImpl extends UnicastRemoteObject implements SyncService 
 
     @Override
     public void syncVehicleOut(ParkingOutEvent slot) throws RemoteException {
+
+        if (slot == null) return;
+        if (thisServer.equals(slot.getSourceServer())) {
+            return;
+        }
         System.out.println("Nhận OUT từ server khác: " + slot.getPlateNumber());
         try {
             parkingImpl.takeVehicleOutFromSync(slot);
