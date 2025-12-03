@@ -15,8 +15,8 @@
 
 <AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="941.0" prefWidth="1337.0" style="-fx-background-color: #EBEBEB;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.duanparking.client.controller.RentController">
    <children>
-      <ScrollPane fx:id="gridWrapper" layoutX="13.0" layoutY="27.0" prefHeight="889.0" prefWidth="851.0" stylesheets="@scrollbar.css" />
-      <AnchorPane layoutX="875.0" layoutY="51.0" prefHeight="290.0" prefWidth="450.0" style="-fx-background-color: #BBDCE5; -fx-background-radius: 10px;">
+      <ScrollPane fx:id="gridWrapper" layoutX="13.0" layoutY="27.0" prefHeight="863.0" prefWidth="851.0" stylesheets="@scrollbar.css" />
+      <AnchorPane layoutX="875.0" layoutY="35.0" prefHeight="315.0" prefWidth="450.0" style="-fx-background-color: #BBDCE5; -fx-background-radius: 10px;">
          <children>
             <Label layoutX="14.0" layoutY="24.0" prefHeight="20.0" prefWidth="87.0" text="Biển số xe :" textFill="#473472">
                <font>
@@ -63,18 +63,28 @@
                   <Font size="14.0" />
                </font>
             </TextField>
-            <ComboBox fx:id="vehicleType" layoutX="128.0" layoutY="74.0" prefHeight="30.0" prefWidth="220.0" />
-            <Line endX="280.0" layoutX="126.0" layoutY="235.0" startX="-100.0" />
-            <RadioButton fx:id="rentByBuoi" layoutX="47.0" layoutY="252.0" mnemonicParsing="false" text="Thuê theo buổi hoặc giờ">
+            <ComboBox fx:id="vehicleTypeField" layoutX="128.0" layoutY="74.0" prefHeight="30.0" prefWidth="220.0" />
+            <Line endX="280.0" layoutX="126.0" layoutY="273.0" startX="-100.0" />
+            <RadioButton fx:id="rentByBuoi" layoutX="47.0" layoutY="283.0" mnemonicParsing="false" text="Thuê theo buổi hoặc giờ">
                <font>
                   <Font size="13.0" />
                </font>
             </RadioButton>
-            <RadioButton fx:id="rentByKhac" layoutX="314.0" layoutY="252.0" mnemonicParsing="false" text="Khác">
+            <RadioButton fx:id="rentByKhac" layoutX="314.0" layoutY="283.0" mnemonicParsing="false" text="Khác">
                <font>
                   <Font size="13.0" />
                </font>
             </RadioButton>
+            <Label layoutX="12.0" layoutY="233.0" prefHeight="20.0" prefWidth="113.0" text="Vị trí               :" textFill="#473472">
+               <font>
+                  <Font name="Times New Roman Bold" size="17.0" />
+               </font>
+            </Label>
+            <TextField fx:id="placeField" layoutX="127.0" layoutY="229.0" prefHeight="30.0" prefWidth="52.0">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </TextField>
          </children>
       </AnchorPane>
       <AnchorPane fx:id="rentByKhacPane" layoutX="875.0" layoutY="359.0" prefHeight="290.0" prefWidth="450.0" style="-fx-background-color: #BBDCE5; -fx-background-radius: 10px;" visible="false">
@@ -84,7 +94,7 @@
                   <Font name="Times New Roman Bold" size="16.0" />
                </font>
             </Label>
-            <ComboBox fx:id="buoi1" layoutX="108.0" layoutY="16.0" prefHeight="30.0" prefWidth="220.0" />
+            <ComboBox fx:id="buoi2" layoutX="108.0" layoutY="16.0" prefHeight="30.0" prefWidth="220.0" />
             <Label layoutX="7.0" layoutY="69.0" prefHeight="20.0" prefWidth="113.0" text="Thời gian vào  :" textFill="#473472">
                <font>
                   <Font name="Times New Roman Bold" size="16.0" />
@@ -142,131 +152,131 @@
                </font>
             </Label>
             <DatePicker fx:id="toDatePicker2" layoutX="310.0" layoutY="14.0" prefHeight="30.0" prefWidth="136.0" />
-            <Label layoutX="10.0" layoutY="80.0" prefHeight="20.0" prefWidth="174.0" text="Các ngày trong tuần    :" textFill="#473472">
+            <Label layoutX="10.0" layoutY="70.0" prefHeight="20.0" prefWidth="174.0" text="Các ngày trong tuần    :" textFill="#473472">
                <font>
                   <Font name="Times New Roman Bold" size="17.0" />
                </font>
             </Label>
-            <AnchorPane layoutX="10.0" layoutY="113.0" prefHeight="35.0" prefWidth="434.0">
+            <AnchorPane layoutX="10.0" layoutY="106.0" prefHeight="35.0" prefWidth="434.0">
                <children>
-                  <Label layoutX="18.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ hai" textFill="#463470e5">
+                  <Label layoutX="12.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ hai" textFill="#45346ecc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
                   </Label>
-                  <CheckBox fx:id="monday" layoutX="94.0" layoutY="9.0" mnemonicParsing="false" />
-                  <ComboBox fx:id="mondayShift" layoutX="132.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
+                  <CheckBox fx:id="monday" layoutX="90.0" layoutY="9.0" mnemonicParsing="false" />
+                  <ComboBox fx:id="mondayShift" layoutX="122.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
                   <TimeSpinner fx:id="monTo" layoutX="362.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
-                  <TimeSpinner fx:id="monFrom" layoutX="267.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
-                  <Label layoutX="337.0" layoutY="9.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
+                  <TimeSpinner fx:id="monFrom" layoutX="263.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
+                  <Label layoutX="335.0" layoutY="9.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
                   </Label>
                </children>
             </AnchorPane>
-            <AnchorPane layoutX="10.0" layoutY="160.0" prefHeight="35.0" prefWidth="434.0">
+            <AnchorPane layoutX="10.0" layoutY="155.0" prefHeight="35.0" prefWidth="434.0">
                <children>
-                  <Label layoutX="18.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ ba" textFill="#463470cf">
+                  <Label layoutX="12.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ ba" textFill="#45346ecc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
                   </Label>
-                  <CheckBox fx:id="tuesday" layoutX="94.0" layoutY="9.0" mnemonicParsing="false" />
-                  <ComboBox fx:id="tuesdayShift" layoutX="132.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
+                  <CheckBox fx:id="tuesday" layoutX="90.0" layoutY="9.0" mnemonicParsing="false" />
+                  <ComboBox fx:id="tuesdayShift" layoutX="122.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
                   <TimeSpinner fx:id="tueTo" layoutX="362.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
-                  <TimeSpinner fx:id="tueFrom" layoutX="267.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
-                  <Label layoutX="337.0" layoutY="8.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
+                  <TimeSpinner fx:id="tueFrom" layoutX="263.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
+                  <Label layoutX="335.0" layoutY="8.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
                   </Label>
                </children>
             </AnchorPane>
-            <AnchorPane layoutX="10.0" layoutY="206.0" prefHeight="35.0" prefWidth="434.0">
+            <AnchorPane layoutX="10.0" layoutY="204.0" prefHeight="35.0" prefWidth="434.0">
                <children>
-                  <Label layoutX="18.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ tư" textFill="#473472">
+                  <Label layoutX="12.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ tư" textFill="#45346ecc">
                      <font>
                         <Font name="Times New Roman Bold" size="16.0" />
                      </font>
                   </Label>
-                  <CheckBox fx:id="wednesday" layoutX="94.0" layoutY="9.0" mnemonicParsing="false" />
-                  <ComboBox fx:id="wednesdayShift" layoutX="132.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
+                  <CheckBox fx:id="wednesday" layoutX="90.0" layoutY="9.0" mnemonicParsing="false" />
+                  <ComboBox fx:id="wednesdayShift" layoutX="122.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
                   <TimeSpinner fx:id="wedTo" layoutX="362.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
-                  <TimeSpinner fx:id="wedFrom" layoutX="267.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
-                  <Label layoutX="337.0" layoutY="8.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
+                  <TimeSpinner fx:id="wedFrom" layoutX="263.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
+                  <Label layoutX="335.0" layoutY="8.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
                   </Label>
                </children>
             </AnchorPane>
-            <AnchorPane layoutX="10.0" layoutY="253.0" prefHeight="35.0" prefWidth="434.0">
+            <AnchorPane layoutX="10.0" layoutY="254.0" prefHeight="35.0" prefWidth="434.0">
                <children>
-                  <Label layoutX="18.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ năm" textFill="#473472">
+                  <Label layoutX="12.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ năm" textFill="#45346ecc">
                      <font>
                         <Font name="Times New Roman Bold" size="16.0" />
                      </font>
                   </Label>
-                  <CheckBox fx:id="thursday" layoutX="94.0" layoutY="9.0" mnemonicParsing="false" />
-                  <ComboBox fx:id="thursdayShift" layoutX="132.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
+                  <CheckBox fx:id="thursday" layoutX="90.0" layoutY="9.0" mnemonicParsing="false" />
+                  <ComboBox fx:id="thursdayShift" layoutX="122.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
                   <TimeSpinner fx:id="thuTo" layoutX="362.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
-                  <TimeSpinner fx:id="thuFrom" layoutX="267.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
-                  <Label layoutX="337.0" layoutY="9.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
+                  <TimeSpinner fx:id="thuFrom" layoutX="263.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
+                  <Label layoutX="335.0" layoutY="9.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
                   </Label>
                </children>
             </AnchorPane>
-            <AnchorPane layoutX="10.0" layoutY="300.0" prefHeight="35.0" prefWidth="434.0">
+            <AnchorPane layoutX="10.0" layoutY="303.0" prefHeight="35.0" prefWidth="434.0">
                <children>
-                  <Label layoutX="18.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ sáu" textFill="#473472">
+                  <Label layoutX="12.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ sáu" textFill="#45346ecc">
                      <font>
                         <Font name="Times New Roman Bold" size="16.0" />
                      </font>
                   </Label>
-                  <CheckBox fx:id="friday" layoutX="94.0" layoutY="9.0" mnemonicParsing="false" />
-                  <ComboBox fx:id="fridayShift" layoutX="132.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
+                  <CheckBox fx:id="friday" layoutX="90.0" layoutY="9.0" mnemonicParsing="false" />
+                  <ComboBox fx:id="fridayShift" layoutX="122.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
                   <TimeSpinner fx:id="friTo" layoutX="362.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
-                  <TimeSpinner fx:id="friFrom" layoutX="267.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
-                  <Label layoutX="337.0" layoutY="8.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
+                  <TimeSpinner fx:id="friFrom" layoutX="263.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
+                  <Label layoutX="335.0" layoutY="8.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
                   </Label>
                </children>
             </AnchorPane>
-            <AnchorPane layoutX="10.0" layoutY="347.0" prefHeight="35.0" prefWidth="434.0">
+            <AnchorPane layoutX="10.0" layoutY="351.0" prefHeight="35.0" prefWidth="434.0">
                <children>
-                  <Label layoutX="18.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ bảy" textFill="#473472">
+                  <Label layoutX="12.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Thứ bảy" textFill="#45346ecc">
                      <font>
                         <Font name="Times New Roman Bold" size="16.0" />
                      </font>
                   </Label>
-                  <CheckBox fx:id="saturday" layoutX="94.0" layoutY="9.0" mnemonicParsing="false" />
-                  <ComboBox fx:id="saturdayShift" layoutX="132.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
+                  <CheckBox fx:id="saturday" layoutX="90.0" layoutY="9.0" mnemonicParsing="false" />
+                  <ComboBox fx:id="saturdayShift" layoutX="122.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
                   <TimeSpinner fx:id="satTo" layoutX="362.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
-                  <TimeSpinner fx:id="satFrom" layoutX="267.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
-                  <Label layoutX="337.0" layoutY="9.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
+                  <TimeSpinner fx:id="satFrom" layoutX="263.0" layoutY="5.0" prefHeight="25.0" prefWidth="68.0" />
+                  <Label layoutX="335.0" layoutY="9.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
                   </Label>
                </children>
             </AnchorPane>
-            <AnchorPane layoutX="10.0" layoutY="396.0" prefHeight="35.0" prefWidth="434.0">
+            <AnchorPane layoutX="10.0" layoutY="402.0" prefHeight="35.0" prefWidth="434.0">
                <children>
-                  <Label layoutX="18.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Chủ Nhật" textFill="#473472">
+                  <Label layoutX="12.0" layoutY="7.0" prefHeight="20.0" prefWidth="72.0" text="Chủ Nhật" textFill="#45346ecc">
                      <font>
                         <Font name="Times New Roman Bold" size="16.0" />
                      </font>
                   </Label>
-                  <CheckBox fx:id="sunday" layoutX="94.0" layoutY="9.0" mnemonicParsing="false" />
-                  <ComboBox fx:id="sundayShift" layoutX="132.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
+                  <CheckBox fx:id="sunday" layoutX="90.0" layoutY="9.0" mnemonicParsing="false" />
+                  <ComboBox fx:id="sundayShift" layoutX="122.0" layoutY="5.0" prefHeight="25.0" prefWidth="121.0" />
                   <TimeSpinner fx:id="sunTo" layoutX="362.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
-                  <TimeSpinner fx:id="sunFrom" layoutX="267.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
-                  <Label layoutX="337.0" layoutY="8.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
+                  <TimeSpinner fx:id="sunFrom" layoutX="263.0" layoutY="4.0" prefHeight="25.0" prefWidth="68.0" />
+                  <Label layoutX="335.0" layoutY="8.0" prefHeight="20.0" prefWidth="23.0" text="To" textFill="#463470cc">
                      <font>
                         <Font name="Times New Roman Bold" size="15.0" />
                      </font>
@@ -275,5 +285,8 @@
             </AnchorPane>
          </children>
       </AnchorPane>
+      <Button layoutX="194.0" layoutY="903.0" mnemonicParsing="false" text="Sáng" />
+      <Button layoutX="359.0" layoutY="903.0" mnemonicParsing="false" text="Chiều" />
+      <Button layoutX="515.0" layoutY="903.0" mnemonicParsing="false" text="Tối" />
    </children>
 </AnchorPane>

@@ -7,6 +7,7 @@ module org.example.duanparking {
     requires tess4j;
     requires webcam.capture;
     requires javafx.swing;
+    requires org.controlsfx.controls;
 
 
     exports org.example.duanparking;

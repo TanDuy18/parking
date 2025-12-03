@@ -4,6 +4,7 @@ package org.example.duanparking.server;
 import org.example.duanparking.common.remote.SyncService;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -13,11 +14,11 @@ public class ParkingServer  {
     public static void main(String[] args) {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 1099;
         String serverName = args.length > 1 ? args[1] : "SERVER_A";
-        String myIp = args.length > 2 ? args[2] : "192.168.1.8";
-        String otherIp = args.length > 3 ? args[3] : "192.168.1.11";
+        String myIp = args.length > 2 ? args[2] : "172.20.10.3";
+        String otherIp = args.length > 3 ? args[3] : "172.20.10.5";
         try {
             // System.setProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostName());
-            System.setProperty("java.rmi.server.hostname", "192.168.1.8");
+            System.setProperty("java.rmi.server.hostname", myIp);
             System.setProperty("sun.rmi.dgc.client.gcInterval", "15000"); // 15s
             System.setProperty("sun.rmi.dgc.server.gcInterval", "15000");
 

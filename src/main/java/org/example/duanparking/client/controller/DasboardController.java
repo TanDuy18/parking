@@ -3,6 +3,8 @@ package org.example.duanparking.client.controller;
 import com.github.sarxos.webcam.Webcam;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -23,8 +25,10 @@ import javafx.scene.control.Label;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import org.controlsfx.control.PrefixSelectionChoiceBox;
 import org.example.duanparking.common.dto.ParkingHistoryDTO;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
+
 import org.example.duanparking.common.dto.VehicleDTO;
 import org.example.duanparking.common.remote.ClientCallback;
 import org.example.duanparking.common.remote.ParkingInterface;
@@ -97,6 +101,8 @@ public class DasboardController implements Initializable {
     private Label inLabel;
     @FXML
     private Label outLabel;
+    @FXML
+    private PrefixSelectionChoiceBox<String> serverRmi;
 
     private ParkingInterface parkingInterface;
     private ParkingSlotDTO outData;
@@ -104,6 +110,7 @@ public class DasboardController implements Initializable {
     private static RmiClientManager manager;
     private Webcam webcam;
     private boolean cameraActive = true;
+
 
     private DetectPlate detectPlate;
     private int frameCount = 0;
@@ -421,27 +428,26 @@ public class DasboardController implements Initializable {
 
     @FXML
     private void handleRentButton(ActionEvent event) {
-        try {
-            stopWebcam();
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/example/duanparking/rent-screen.fxml"));
-            Parent root = loader.load();
+           Platform.runLater(() -> {
+               try {
+               stopWebcam();
+               FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/example/duanparking/rent-screen.fxml"));
+               Parent root = loader.load();
 
-            Scene newScene = new Scene(root);
-
-            RentController newRentController = loader.getController();
-
-            RmiClientManager.getInstance().setGridManager(newRentController.getParkingGridManager());
+               Scene newScene = new Scene(root);
 
 
-            Stage currentStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
 
-            currentStage.setScene(newScene);
-            currentStage.setTitle("Rent Parking");
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            openNotificationScreen("Lỗi load giao diện Rent: " + e.getMessage()); // Dùng method alert của mày
-        }
+               Stage currentStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+
+               currentStage.setScene(newScene);
+               currentStage.setTitle("Rent Parking");
+               } catch (Exception e) {
+                   e.printStackTrace();
+                   openNotificationScreen("Lỗi load giao diện Rent: " + e.getMessage()); // Dùng method alert của mày
+               }
+           });
     }
 
 }

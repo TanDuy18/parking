@@ -6,17 +6,19 @@ import org.example.duanparking.common.remote.ParkingInterface;
 import org.example.duanparking.common.remote.SyncService;
 import org.example.duanparking.model.DBManager;
 
+import java.math.BigDecimal;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.rmi.server.Unreferenced;
 import java.sql.*;
+import java.sql.Date;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -25,7 +27,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     String serverName;
     private List<SyncService> syncTargets = new ArrayList<>();
 
-    public ParkingImpl(String serverName) throws java.rmi.RemoteException {
+    public ParkingImpl(String serverName) throws RemoteException {
         super();
         this.serverName = serverName;
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
@@ -244,7 +246,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                     for (ClientCallback client : clients) {
                         try {
                             SlotStatusDTO slot = new SlotStatusDTO(slot1.getSpotId(), slot1.getStatus());
-                            // broadcastVehicleIn(inEvent);
+                            broadcastVehicleIn(inEvent);
                             client.onSlotUpdated(slot);
                         } catch (RemoteException ex) {
                             System.err.println("Lỗi callback: " + ex.getMessage());
@@ -270,6 +272,12 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         client.syncSlots(getAllSlots());
         System.out.println("Một client đã đăng ký");
     };
+
+    @Override
+    public void unregisterClient(ClientCallback client) throws RemoteException {
+        clients.remove(client);
+
+    }
 
     @Override
     public void unreferenced() {
@@ -479,7 +487,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             ParkingOutEvent outEvent = new ParkingOutEvent(slot.getSpotId(),slot.getVehicle().getPlateNumber(),slot.getHistory().getTransactionId(),slot.getHistory().getExitTime(),slot.getHistory().getFee(), this.getServerName());
 
             System.out.println(outEvent.toString());
-            // broadcastVehicleOut(outEvent);
+            broadcastVehicleOut(outEvent);
             for (ClientCallback client : clients) {
                 try {
                     client.onSlotUpdated(dto);
@@ -733,6 +741,282 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void rentPlace(RentDTO rent) throws RemoteException {
+        Connection conn = null;
+
+        try {
+            conn = DBManager.getConnection();
+            conn.setAutoCommit(false);
+
+            // 1. Kiểm tra spot có hợp lệ không
+            String checkSpotSql = "SELECT status, area_type FROM parkingslot WHERE spot_id = ?";
+            String spotStatus = "";
+            String areaType = "";
+
+            try (PreparedStatement ps = conn.prepareStatement(checkSpotSql)) {
+                ps.setString(1, rent.getPlace());
+                ResultSet rs = ps.executeQuery();
+
+                if (!rs.next()) {
+                    throw new RemoteException("Vị trí không tồn tại!");
+                }
+
+                spotStatus = rs.getString("status");
+                areaType = rs.getString("area_type");
+
+                if ("RENTED".equals(spotStatus) || "OCCUPIED".equals(spotStatus)) {
+                    throw new RemoteException("Vị trí đã được thuê hoặc đang có xe!");
+                }
+            }
+
+            // 2. Lấy hoặc tạo vehicle
+            int vehicleId = getOrCreateVehicle(conn, rent);
+
+            // 3. Tính tổng tiền
+            double hourlyRate = getHourlyRate(rent.getPlace(), rent.getVehicleType());
+            double totalAmount = calculateRentAmount(rent, hourlyRate);
+
+            // 4. Tạo hợp đồng thuê trong bảng renter
+            String insertRenterSql = """
+            INSERT INTO renter (vehicle_id, spot_id, start_date, end_date, 
+                               status, monthly_rate)
+            VALUES (?, ?, ?, ?, 'ACTIVE', ?)
+        """;
+
+            int renterId;
+            try (PreparedStatement ps = conn.prepareStatement(insertRenterSql,
+                    Statement.RETURN_GENERATED_KEYS)) {
+                ps.setInt(1, vehicleId);
+                ps.setString(2, rent.getPlace());
+                ps.setDate(3, Date.valueOf(rent.getFromDate()));
+                ps.setDate(4, Date.valueOf(rent.getToDate()));
+                ps.setDouble(5, totalAmount); // Lưu tổng tiền vào monthly_rate
+
+                ps.executeUpdate();
+
+                ResultSet rs = ps.getGeneratedKeys();
+                if (rs.next()) {
+                    renterId = rs.getInt(1);
+                } else {
+                    throw new RemoteException("Không thể tạo hợp đồng thuê!");
+                }
+            }
+
+            // 5. Thêm lịch trình thuê vào RenterSchedule
+            if (rent.getDays() != null && !rent.getDays().isEmpty()) {
+                String insertScheduleSql = """
+                INSERT INTO RenterSchedule (renter_id, day_of_week, start_time, end_time)
+                VALUES (?, ?, ?, ?)
+            """;
+
+                try (PreparedStatement ps = conn.prepareStatement(insertScheduleSql)) {
+                    for (DayRent day : rent.getDays()) {
+                        // Chuyển đổi tên ngày sang format MON, TUE, ...
+                        String shortDay = day.getDayOfWeek().substring(0, 3).toUpperCase();
+
+                        ps.setInt(1, renterId);
+                        ps.setString(2, shortDay);
+                        ps.setTime(3, Time.valueOf(day.getStart()));
+                        ps.setTime(4, Time.valueOf(day.getEnd()));
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+            }
+
+            // 6. Cập nhật trạng thái spot
+            String updateSlotSql = "UPDATE parkingslot SET status = 'RENTED' WHERE spot_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(updateSlotSql)) {
+                ps.setString(1, rent.getPlace());
+                ps.executeUpdate();
+            }
+
+            // 7. Thêm thanh toán vào bảng Payment
+            String insertPaymentSql = """
+            INSERT INTO Payment (renter_id, amount, payment_type, payment_method, payment_time)
+            VALUES (?, ?, 'RENTAL', 'TRANSFER', NOW())
+        """;
+            try (PreparedStatement ps = conn.prepareStatement(insertPaymentSql)) {
+                ps.setInt(1, renterId);
+                ps.setDouble(2, totalAmount);
+                ps.executeUpdate();
+            }
+
+            conn.commit();
+
+            // 8. Thông báo cho các client
+            SlotStatusDTO slotStatus = new SlotStatusDTO(rent.getPlace(), "RENTED", areaType);
+            for (ClientCallback client : clients) {
+                try {
+                    client.onSlotUpdated(slotStatus);
+                } catch (Exception e) {
+                    System.out.println("Lỗi khi thông báo thuê chỗ: " + e.getMessage());
+                }
+            }
+
+            System.out.println("Đã tạo hợp đồng thuê thành công cho xe: " + rent.getPlate());
+
+        } catch (Exception e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            throw new RemoteException("Lỗi khi thuê chỗ: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    // Phương thức tính tiền thuê
+    private double calculateRentAmount(RentDTO rent, double hourlyRate) {
+        double totalAmount = 0;
+
+        if (rent.getDays() == null || rent.getDays().isEmpty()) {
+            return totalAmount;
+        }
+
+        // Map các ngày trong tuần
+        Map<String, Integer> dayMap = new HashMap<>();
+        dayMap.put("MONDAY", 1);
+        dayMap.put("TUESDAY", 2);
+        dayMap.put("WEDNESDAY", 3);
+        dayMap.put("THURSDAY", 4);
+        dayMap.put("FRIDAY", 5);
+        dayMap.put("SATURDAY", 6);
+        dayMap.put("SUNDAY", 7);
+
+        // Đếm số lần mỗi ngày xuất hiện
+        for (DayRent day : rent.getDays()) {
+            Integer dayNumber = dayMap.get(day.getDayOfWeek());
+            if (dayNumber != null) {
+                long count = 0;
+                LocalDate date = rent.getFromDate();
+
+                while (!date.isAfter(rent.getToDate())) {
+                    if (date.getDayOfWeek().getValue() == dayNumber) {
+                        count++;
+                    }
+                    date = date.plusDays(1);
+                }
+
+                // Tính số giờ trong ngày này
+                double hours = calculateHours(day.getStart(), day.getEnd());
+                totalAmount += count * hours * hourlyRate;
+            }
+        }
+
+        return totalAmount;
+    }
+
+    // Phương thức tính giờ
+    private double calculateHours(LocalTime start, LocalTime end) {
+        long minutes = java.time.Duration.between(start, end).toMinutes();
+        double hours = minutes / 60.0;
+
+        if (hours < 0) {
+            hours += 24.0;
+        }
+
+        return hours;
+    }
+
+    // Phương thức lấy hoặc tạo vehicle
+    private int getOrCreateVehicle(Connection conn, RentDTO rent) throws SQLException {
+        // Kiểm tra xe đã tồn tại chưa
+        String checkSql = "SELECT vehicle_id FROM Vehicle WHERE plate_number = ?";
+        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+            ps.setString(1, rent.getPlate());
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                // Xe đã tồn tại, cập nhật thông tin
+                int vehicleId = rs.getInt("vehicle_id");
+
+                String updateSql = """
+                UPDATE Vehicle 
+                SET owner_name = ?, owner_phone = ?, brand = ?, vehicle_type = ?
+                WHERE vehicle_id = ?
+            """;
+                try (PreparedStatement updatePs = conn.prepareStatement(updateSql)) {
+                    updatePs.setString(1, rent.getOwner());
+                    updatePs.setString(2, rent.getPhone());
+                    updatePs.setString(3, rent.getBrand());
+                    updatePs.setString(4, rent.getVehicleType());
+                    updatePs.setInt(5, vehicleId);
+                    updatePs.executeUpdate();
+                }
+
+                return vehicleId;
+            } else {
+                // Tạo xe mới
+                String insertSql = """
+                INSERT INTO Vehicle (plate_number, owner_name, owner_phone, 
+                                     vehicle_type, brand)
+                VALUES (?, ?, ?, ?, ?)
+            """;
+                try (PreparedStatement insertPs = conn.prepareStatement(insertSql,
+                        Statement.RETURN_GENERATED_KEYS)) {
+                    insertPs.setString(1, rent.getPlate());
+                    insertPs.setString(2, rent.getOwner());
+                    insertPs.setString(3, rent.getPhone());
+                    insertPs.setString(4, rent.getVehicleType());
+                    insertPs.setString(5, rent.getBrand());
+                    insertPs.executeUpdate();
+
+                    ResultSet rs2 = insertPs.getGeneratedKeys();
+                    if (rs2.next()) {
+                        return rs2.getInt(1);
+                    }
+                }
+            }
+        }
+
+        throw new SQLException("Không thể tạo hoặc cập nhật thông tin xe");
+    }
+
+    @Override
+    public double getHourlyRate(String place, String vehicleType) throws RemoteException {
+        double fee = 0;
+
+        try (Connection conn = DBManager.getConnection()){
+            String areaType = "";
+            try (PreparedStatement ps = conn.prepareStatement("SELECT area_type FROM parkingslot WHERE spot_id = ?")){
+                ps.setString(1, place);
+                try (ResultSet rs = ps.executeQuery()){
+                    if (rs.next()) {
+                        areaType = rs.getString("area_type");
+                    }
+                }
+            }
+
+
+            try (PreparedStatement ps = conn.prepareStatement("SELECT hourly_rate FROM slotpricing WHERE area_type=? AND vehicle_type=?")) {
+                ps.setString(1, areaType);
+                ps.setString(2, vehicleType);
+                try (ResultSet rs = ps.executeQuery()){
+                    if (rs.next()) {
+                        fee = rs.getDouble("hourly_rate");
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return fee;
     }
 
 
