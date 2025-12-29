@@ -1,8 +1,7 @@
-package org.example.duanparking.common.dto;
+package org.example.duanparking.common.dto.rent;
 
 import java.io.Serializable;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.List;
 
 public class RentEvent implements Serializable {
@@ -14,13 +13,14 @@ public class RentEvent implements Serializable {
     private String brand;
     private String place;
     private String vehicleType;
+    private String area_type;
     private LocalDate fromDate;
     private LocalDate toDate;
     private List<DayRent> days;
     private double totalAmount;
     private String sourceServer;
 
-    public RentEvent() {}
+    public RentEvent(String license, String ownerName, String phoneNumber, String brand, String place, String vehicleType, LocalDate fromDate, LocalDate toDate, List<DayRent> selectedDayList, double price) {}
 
     // Constructor
     public RentEvent(String plate, String owner, String phone, String brand,
@@ -40,7 +40,34 @@ public class RentEvent implements Serializable {
         this.sourceServer = sourceServer;
     }
 
-    // Getters and Setters
+    public RentEvent(String vehicleType, String place, String area_type,LocalDate fromDate, LocalDate toDate, List<DayRent> days, double totalAmount) {
+        this.vehicleType = vehicleType;
+        this.place = place;
+        this.area_type = area_type; 
+        this.fromDate = fromDate;
+        this.toDate = toDate;
+        this.days = days;
+        this.totalAmount = totalAmount;
+    }
+
+    public RentEvent(double totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
+    public RentEvent(String plate, String owner, String phone, String brand, String place, String vehicleType, String area_type, LocalDate fromDate, LocalDate toDate, List<DayRent> days, double totalAmount) {
+        this.plate = plate;
+        this.owner = owner;
+        this.phone = phone;
+        this.brand = brand;
+        this.place = place;
+        this.vehicleType = vehicleType;
+        this.area_type = area_type;
+        this.fromDate = fromDate;
+        this.toDate = toDate;
+        this.days = days;
+        this.totalAmount = totalAmount;
+    }
+
     public String getPlate() { return plate; }
     public void setPlate(String plate) { this.plate = plate; }
 
@@ -73,6 +100,9 @@ public class RentEvent implements Serializable {
 
     public String getSourceServer() { return sourceServer; }
     public void setSourceServer(String sourceServer) { this.sourceServer = sourceServer; }
+
+    public String getAreaStyle() { return area_type; }
+    public void setAreaStyle(String area_type) { this.area_type = area_type; }
 
     @Override
     public String toString() {

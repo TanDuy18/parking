@@ -1,0 +1,7 @@
+.rootPane {
+    -fx-background-color: white;
+    -fx-border-color: #DCDCDC;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+}

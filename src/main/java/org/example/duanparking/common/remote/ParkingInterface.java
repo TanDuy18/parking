@@ -1,11 +1,13 @@
 package org.example.duanparking.common.remote;
 
-import java.math.BigDecimal;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.example.duanparking.common.dto.*;
+import org.example.duanparking.common.dto.rent.RentEvent;
+import org.example.duanparking.common.dto.rent.RentResult;
 
 public interface ParkingInterface extends Remote {
    /*
@@ -23,7 +25,8 @@ public interface ParkingInterface extends Remote {
    ParkingSlotDTO getVehicleInfoForOut(String plateNumber) throws RemoteException;
    ParkingSlotDTO getVehicleInfoForIn(String plateNumber) throws RemoteException;
    boolean takeVehicleOut(ParkingSlotDTO slot) throws RemoteException;
-   void rentPlace(RentDTO place) throws RemoteException;
-   double getHourlyRate(String place, String vehicleType) throws RemoteException;
+  RentEvent calculateRentPrice(RentEvent event) throws RemoteException;
+  RentResult acceptRentValue(RentEvent event) throws RemoteException;
+  List<String> getRentalSpotOnDayWithSession(LocalDate date, String session) throws RemoteException;
    void ping() throws RemoteException;
 }

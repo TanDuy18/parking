@@ -1,4 +1,4 @@
-package org.example.duanparking.common.dto;
+package org.example.duanparking.common.dto.rent;
 
 import java.io.Serializable;
 import java.time.LocalTime;

@@ -1,7 +1,10 @@
 package org.example.duanparking.client.controller;
 
 import com.github.sarxos.webcam.Webcam;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -32,6 +35,7 @@ import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.dto.VehicleDTO;
 import org.example.duanparking.common.remote.ClientCallback;
 import org.example.duanparking.common.remote.ParkingInterface;
+import org.example.duanparking.model.DisplayMode;
 
 
 import java.awt.*;
@@ -72,10 +76,7 @@ public class DasboardController implements Initializable {
     private TextField placeField1;
     @FXML
     private TextField arrivalTimeField1;
-    @FXML
-    private TextField brandField1;
-    @FXML
-    private TextField ownerField1;
+
     @FXML
     private ComboBox<String> InforField1;
 
@@ -93,14 +94,8 @@ public class DasboardController implements Initializable {
     private TextField plateField0;
     @FXML
     private TextField priceField0;
-    @FXML
-    private TextField brandField0;
-    @FXML
-    private TextField ownerField0;
-    @FXML
-    private Label inLabel;
-    @FXML
-    private Label outLabel;
+
+
     @FXML
     private PrefixSelectionChoiceBox<String> serverRmi;
 
@@ -169,9 +164,27 @@ public class DasboardController implements Initializable {
 
     public void stopWebcam() {
         cameraActive = false;
-        if (webcam != null && webcam.isOpen()) {
-            webcam.close();
+        if (webcam != null) {
+            new Thread(() -> {
+                try {
+                    webcam.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
         }
+    }
+
+   public void refreshTime() {
+        Timeline clock = new Timeline(new KeyFrame(Duration.minutes(1), e -> {
+        if (gridManager != null) {
+            gridManager.refreshAllSlotsTime();
+            System.out.println("Hệ thống vừa cập nhật thời gian thực cho các ô!");
+        }
+        }));
+
+        clock.setCycleCount(Animation.INDEFINITE);
+        clock.play();
     }
 
     private String formatVND(double money) {
@@ -181,7 +194,6 @@ public class DasboardController implements Initializable {
 
     private double unformatVND(String vndText) {
         try {
-            // Bỏ dấu cách, bỏ ký tự ₫ nếu có
             vndText = vndText.replace("₫", "").replace(" ", "").replace(".", "");
 
             NumberFormat format = NumberFormat.getInstance(new Locale("vi", "VN"));
@@ -195,7 +207,7 @@ public class DasboardController implements Initializable {
     }
 
     private void checkAndSetArrivalTime() {
-        boolean filled = !plateField1.getText().trim().isEmpty() && !brandField1.getText().trim().isEmpty()
+        boolean filled = !plateField1.getText().trim().isEmpty()
                 && !placeField1.getText().trim().isEmpty() && InforField1.getSelectionModel().getSelectedItem() != null;
 
         if (!filled) {
@@ -216,8 +228,7 @@ public class DasboardController implements Initializable {
         checkInOut = 1;
         outBtn.setDisable(false);
         inBtn.setDisable(true);
-        inLabel.setText(" ");
-        outLabel.setText(" ");
+
     }
 
     private void autoFillOutInfo() {
@@ -235,14 +246,14 @@ public class DasboardController implements Initializable {
                 }
 
                 Platform.runLater(() -> {
-                    transaction_id_Field0.setText(String.valueOf(data.getHistory().getTransactionId()));
-                    ownerField0.setText(data.getVehicle().getOwner());
-                    brandField0.setText(data.getVehicle().getBrand());
-                    placeField0.setText(data.getSpotId());
-                    InforField0.setText(data.getVehicle().getVehicleType());
-                    arrivalTimeField0.setText(data.getHistory().getEntryTime().format(formatter));
-                    leaveTimeField0.setText(data.getHistory().getExitTime().format(formatter));
-                    priceField0.setText(formatVND(data.getHistory().getFee()));
+//                    transaction_id_Field0.setText(String.valueOf(data.getHistory().getTransactionId()));
+//                    ownerField0.setText(data.getVehicle().getOwner());
+//                    brandField0.setText(data.getVehicle().getBrand());
+//                    placeField0.setText(data.getSpotId());
+//                    InforField0.setText(data.getVehicle().getVehicleType());
+//                    arrivalTimeField0.setText(data.getHistory().getEntryTime().format(formatter));
+//                    leaveTimeField0.setText(data.getHistory().getExitTime().format(formatter));
+//                    priceField0.setText(formatVND(data.getHistory().getFee()));
                 });
 
             } catch (Exception e) {
@@ -269,9 +280,12 @@ public class DasboardController implements Initializable {
         }).start();
     }
 
+
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         firstRun();
+        refreshTime(); 
         startWebcam();
         try {
             manager = RmiClientManager.getInstance();
@@ -282,8 +296,9 @@ public class DasboardController implements Initializable {
 
             List<ParkingSlotDTO> slots = parkingInterface.getAllSlots();
             gridManager = new ParkingGridManager(parkingGrid);
+            gridManager.setCurrentMode(DisplayMode.DASHBOARD);
             gridManager.updateGrid(slots);
-            // gridManager.updateGrid(slots);
+
 
             manager.setGridManager(gridManager);
 
@@ -316,7 +331,6 @@ public class DasboardController implements Initializable {
 
         debounce.setOnFinished(e -> checkAndSetArrivalTime());
         plateField1.textProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
-        brandField1.textProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
         placeField1.textProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
         InforField1.valueProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
 
@@ -326,6 +340,10 @@ public class DasboardController implements Initializable {
         debounceIn.setOnFinished(e -> autoFillInInfo());
         plateField1.textProperty().addListener((obs, oldVal, newVal) -> debounceOut.playFromStart());
 
+
+        gridManager.setClickHandler(((slot, pane) -> {
+           
+        }));
     }
 
     @FXML
@@ -336,9 +354,9 @@ public class DasboardController implements Initializable {
                 current = LocalDateTime.now();
 
                 String plateName1 = plateField1.getText().trim();
-                String owner1 = ownerField1.getText();
+
                 String place = placeField1.getText();
-                String brand = brandField1.getText();
+
                 String vehicleInfor = InforField1.getSelectionModel().getSelectedItem();
 
                 if (plateName1.isEmpty() || place.isEmpty()) {
@@ -368,18 +386,15 @@ public class DasboardController implements Initializable {
 
                             history.setEntryTime(current);
 
-                            vehicle.setBrand(brand);
-                            vehicle.setOwner(owner1);
+
                             vehicle.setPlateNumber(plateName1);
                             vehicle.setVehicleType(vehicleInfor);
-                            slot.setVehicle(vehicle);
-                            slot.setHistory(history);
                             int i = parkingInterface.updateSlotStatus(slot);
                             switch (i) {
                                 case 0:
                                     Platform.runLater(() -> {
-                                        inLabel.setText("Xe biển số "+ plateField1.getText() +" đã lấy vị trí "+ placeField1.getText());
-                                        placeField1.setText(" "); arrivalTimeField1.setText(" "); plateField1.setText(" "); brandField1.setText(" "); ownerField1.setText(" ");
+
+                                        placeField1.setText(" "); arrivalTimeField1.setText(" "); plateField1.setText(" ");
                                     });
                                     break;
                                 case 1:
@@ -407,11 +422,7 @@ public class DasboardController implements Initializable {
 
                         if (check) {
                             Platform.runLater(() -> {
-                                inLabel.setText("Xe có biển số " + plateField0.getText() + "ở vị trí "
-                                        + placeField0.getText() + " đã ra khỏi bãi");
                                 transaction_id_Field0.setText(" ");
-                                ownerField0.setText(" ");
-                                brandField0.setText(" ");
                                 placeField0.setText(" ");
                                 InforField0.setText(" ");
                                 arrivalTimeField0.setText(" ");
@@ -428,16 +439,13 @@ public class DasboardController implements Initializable {
 
     @FXML
     private void handleRentButton(ActionEvent event) {
+        stopWebcam();
            Platform.runLater(() -> {
                try {
-               stopWebcam();
                FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/example/duanparking/rent-screen.fxml"));
                Parent root = loader.load();
 
                Scene newScene = new Scene(root);
-
-
-
 
                Stage currentStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
 
@@ -448,6 +456,20 @@ public class DasboardController implements Initializable {
                    openNotificationScreen("Lỗi load giao diện Rent: " + e.getMessage()); // Dùng method alert của mày
                }
            });
+    }
+
+    @FXML
+    void handleRefresh(ActionEvent event) {
+        new Thread(() -> {   
+            try {    
+                List<ParkingSlotDTO> slots = parkingInterface.getAllSlots();
+                gridManager = new ParkingGridManager(parkingGrid);
+                gridManager.updateGrid(slots);
+                gridManager.setCurrentMode(DisplayMode.RENT_MANAGEMENT);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }).start(); 
     }
 
 }

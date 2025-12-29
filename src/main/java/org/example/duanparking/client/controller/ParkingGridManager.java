@@ -1,12 +1,19 @@
 package org.example.duanparking.client.controller;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
+import org.example.duanparking.common.SlotClickHandler;
 import org.example.duanparking.common.dto.ParkingSlotDTO;
 import org.example.duanparking.common.dto.SlotStatusDTO;
-
+import org.example.duanparking.common.SlotViewModel;
+import org.example.duanparking.model.DisplayMode;
 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -16,125 +23,139 @@ import java.util.Map;
 
 public class ParkingGridManager {
     private GridPane parkingGrid;
-    private List<ParkingSlotDTO> slots;
+    private Map<String, SlotViewModel> viewModelMap = new HashMap<>();
+    private boolean isRentPage = false;
+    private SlotClickHandler primaryClickHandler = (slot, pane) -> {};
+    private SlotClickHandler secondaryClickHandler = (slot, pane) -> {};
+    private DisplayMode currentMode;
+    private SlotViewModel selectedViewModel = null;
+
 
     public ParkingGridManager(GridPane parkingGrid) {
         this.parkingGrid = parkingGrid;
     }
 
     public void updateGrid(List<ParkingSlotDTO> slots) {
-        this.slots = (slots != null) ? new ArrayList<>(slots) : new ArrayList<>();
         try {
-            Platform.runLater(this::buildGrid);
+            Platform.runLater(() -> buildGrid(slots));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void buildGrid() {
+
+    public void setCurrentMode(DisplayMode mode) {
+        this.currentMode = mode;
+    }
+
+    public void setClickHandler(SlotClickHandler handler) {
+        this.primaryClickHandler = (handler != null) ? handler : (slot, pane) -> {
+        };
+    }
+
+    public void setRightClickHandler(SlotClickHandler handler) {
+        this.secondaryClickHandler = (handler != null) ? handler : (slot, pane) -> {
+        };
+    }
+
+    private void buildGrid(List<ParkingSlotDTO> slots) {
         parkingGrid.getChildren().clear();
         parkingGrid.getRowConstraints().clear();
         parkingGrid.getColumnConstraints().clear();
+        viewModelMap.clear();
 
         if (slots.isEmpty()) return;
 
-        // ✅ Tính max hàng/cột
         int maxRows = slots.stream().mapToInt(ParkingSlotDTO::getRow).max().orElse(0) + 1;
         int maxCols = slots.stream().mapToInt(ParkingSlotDTO::getCol).max().orElse(0) + 1;
 
-        // ✅ Cấu hình kích thước ô cố định
-        for (int i = 0; i < maxCols; i++) {
+        int lineCol = 5;
+        int lineRow = 2;
+        for (int c = 0; c < maxCols; c++) {
             ColumnConstraints col = new ColumnConstraints();
-            col.setPrefWidth(100);
-            col.setMinWidth(100);
-            col.setMaxWidth(100);
+
+            double width = 100;
+            if (c == lineCol) {
+                width = 40;
+                lineCol += 6;
+            }
+            col.setPrefWidth(width);
+            col.setMinWidth(width);
+            col.setMaxWidth(width);
+
             parkingGrid.getColumnConstraints().add(col);
         }
 
-        for (int i = 0; i < maxRows; i++) {
+        for (int r = 0; r < maxRows; r++) {
             RowConstraints row = new RowConstraints();
-            row.setPrefHeight(100);
-            row.setMinHeight(100);
-            row.setMaxHeight(100);
+            double width = 100;
+
+            if (r == lineRow) {
+                width = 40;
+                lineRow += 3;
+            }
+            row.setPrefHeight(width);
+            row.setMinHeight(width);
+            row.setMaxHeight(width);
             parkingGrid.getRowConstraints().add(row);
         }
 
-        // ✅ Map vị trí -> slot
-        Map<String, ParkingSlotDTO> slotMap = new HashMap<>();
-        for (ParkingSlotDTO slot : slots) {
-            slotMap.put(slot.getRow() + "," + slot.getCol(), slot);
-        }
+        for (ParkingSlotDTO dto : slots) {
+            SlotViewModel vm = new SlotViewModel(dto);
+            viewModelMap.put(dto.getSpotId(), vm);
 
-        // ✅ Tạo đủ tất cả các ô, kể cả trống
-        for (int r = 0; r < maxRows; r++) {
-            for (int c = 0; c < maxCols; c++) {
-                ParkingSlotDTO slot = slotMap.get(r + "," + c);
+            AnchorPane pane = new AnchorPane();
+            pane.setPrefSize(100, 100);
 
-                AnchorPane pane = new AnchorPane();
-                pane.setPrefSize(100, 100);
-                pane.setId(slot != null ? "slot" + slot.getSpotId() : "empty" + r + "_" + c);
-                pane.setStyle("-fx-border-color: black; -fx-background-color: "
-                        + (slot == null ? "#cccccc" : "green") + ";");
+            pane.styleProperty().bind(Bindings.concat(
+                    "-fx-background-color: ", vm.colorBinding(this.currentMode), "; ",
+                    vm.borderBinding()
+            ));
 
-                if (slot != null) {
-                    Label label = new Label("Slot " + slot.getSpotId());
-                    label.setLayoutX(10);
-                    label.setLayoutY(10);
-                    pane.getChildren().add(label);
+            Label label = new Label();
+            label.textProperty().bind(vm.textBinding());
+            label.setLayoutX(5);
+            label.setLayoutY(5);
+            pane.getChildren().add(label);
+
+            pane.setOnMouseClicked(event -> {
+                if (event.getButton() == MouseButton.SECONDARY) {
+
+                    Platform.runLater(() -> secondaryClickHandler.onSlotClicked(dto, pane));
+
+                } else if (event.getButton() == MouseButton.PRIMARY) {
+                    handleHighlight(vm);
+                    Platform.runLater(() -> primaryClickHandler.onSlotClicked(dto, pane));
+                    System.out.println("Bạn đang click chuột trái");
                 }
+                event.consume();
+            });
 
-                parkingGrid.add(pane, c, r);
-            }
+            parkingGrid.add(pane, dto.getCol(), dto.getRow());
         }
 
-        updateSlotUI();
-    }
 
-    public void updateSlotUI() {
-        if (slots == null) return;
-        for (ParkingSlotDTO slot : slots) {
-            Node node = parkingGrid.lookup("#slot" + slot.getSpotId());
-            if (node instanceof AnchorPane pane) {
-                String color = getColor(slot.getStatus(), slot.getAreaType());
-                pane.setStyle("-fx-background-color: " + color + "; -fx-border-color: black;");
-            }
-        }
-    }
-
-    private String getColor(String status, String areaType) {
-        String color = "#808080"; // Mặc định là màu xám (safe default)
-
-        if (status.equalsIgnoreCase("OCCUPIED")) {
-            color = "#ff4444";
-        } else if (status.equalsIgnoreCase("FREE")) {
-            String type = areaType;
-            color =  switch (type) {
-                case "PREMIUM" -> "#3388ff";  // xanh dương
-                case "VIP" -> "#aa44ff";      // tím
-                case "EV" -> "#44ff44";       // xanh neon
-                case "MOTOR" -> "#ffaa00";    // cam
-                default -> "#44aa44";         // STANDARD
-            };
-        }
-
-        return color;
     }
 
 
     public void updateSingleSlot(SlotStatusDTO slot) throws RemoteException {
         Platform.runLater(() -> {
-            Node node = parkingGrid.lookup("#slot" + slot.getSpotId());
-            if (node instanceof AnchorPane slotPane) {
-                String color = getColor(slot.getStatus(), slot.getAreaStyle());
-                slotPane.setStyle("-fx-background-color: " + color + "; -fx-border-color: black;");
+            SlotViewModel vm = viewModelMap.get(slot.getSpotId());
+            if (vm != null) {
+                vm.setStatus(slot.getStatus());
             }
         });
     }
 
-
-    public String getStringSlot(){
-        return null;
+    private void handleHighlight(SlotViewModel newVm) {
+        if (selectedViewModel != null) {
+            selectedViewModel.setHighlighted(false);
+        }
+        newVm.setHighlighted(true);
+        selectedViewModel = newVm;
     }
 
-
+    public void refreshAllSlotsTime() {
+        viewModelMap.values().forEach(SlotViewModel::updateTime);
+    }
 }

@@ -20,7 +20,6 @@ module org.example.duanparking {
     opens org.example.duanparking.server to java.rmi, javafx.fxml;
     exports org.example.duanparking.client.controller to java.rmi;
     opens org.example.duanparking.client.controller to java.rmi, javafx.fxml;
-    exports org.example.duanparking.server.dao to java.rmi;
     opens org.example.duanparking.common to javafx.fxml;
     exports org.example.duanparking.common;
 

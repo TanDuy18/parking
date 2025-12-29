@@ -2,7 +2,7 @@ package org.example.duanparking.server;
 
 import org.example.duanparking.common.dto.ParkingInEvent;
 import org.example.duanparking.common.dto.ParkingOutEvent;
-import org.example.duanparking.common.dto.ParkingSlotDTO;
+import org.example.duanparking.common.dto.rent.RentEvent;
 import org.example.duanparking.common.remote.SyncService;
 
 import java.rmi.RemoteException;
@@ -25,6 +25,11 @@ public class SyncServiceImpl extends UnicastRemoteObject implements SyncService 
         }
         System.out.println(slot.toString());
         parkingImpl.takeVehicleInFromSync(slot);
+
+    }
+
+    @Override
+    public void syncRentPlace(RentEvent rent) throws RemoteException {
 
     }
 

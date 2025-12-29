@@ -2,8 +2,8 @@ package org.example.duanparking.common.remote;
 
 import org.example.duanparking.common.dto.ParkingInEvent;
 import org.example.duanparking.common.dto.ParkingOutEvent;
-import org.example.duanparking.common.dto.ParkingSlotDTO;
-import org.example.duanparking.common.dto.RentEvent;
+import org.example.duanparking.common.dto.rent.RentEvent;
+
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;

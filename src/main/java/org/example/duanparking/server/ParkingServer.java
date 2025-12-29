@@ -14,8 +14,8 @@ public class ParkingServer  {
     public static void main(String[] args) {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 1099;
         String serverName = args.length > 1 ? args[1] : "SERVER_A";
-        String myIp = args.length > 2 ? args[2] : "172.20.10.3";
-        String otherIp = args.length > 3 ? args[3] : "172.20.10.5";
+        String myIp = args.length > 2 ? args[2] : InetAddress.getLoopbackAddress().getHostAddress();
+        String otherIp = args.length > 3 ? args[3] : "172.20.10.2";
         try {
             // System.setProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostName());
             System.setProperty("java.rmi.server.hostname", myIp);
@@ -38,22 +38,22 @@ public class ParkingServer  {
             System.out.println("ParkingServer chạy trên " + myIp + ":" + port);
             System.out.println("ParkingServer chạy trên port " + port + "!");
 
-            final int MAX_TRIES = 10;
-            for (int i = 1; i <= MAX_TRIES; i++) {
-                try {
-                    String remoteUrl = "rmi://" + otherIp + ":" + port + "/SyncService";
-                    System.out.println("Thử kết nối tới " + remoteUrl + " (attempt " + i + ")");
-                    SyncService other = (SyncService) Naming.lookup(remoteUrl);
-                    obj.addSyncTarget(other);
-                    System.out.println("Đã kết nối tới server " + otherIp);
-                    break;
-                } catch (Exception ex) {
-                    System.err.println("Không kết nối được tới " + otherIp + " (attempt " + i + "): " + ex.getMessage());
-                    Thread.sleep(2000);
-                    if (i == MAX_TRIES) System.err.println("Hết lần thử, sẽ tiếp tục chạy và chờ manual reconnect");
-                }
-            }
-            System.out.println("Đã kết nối tới serverB");
+//            final int MAX_TRIES = 10;
+//            for (int i = 1; i <= MAX_TRIES; i++) {
+//                try {
+//                    String remoteUrl = "rmi://" + otherIp + ":" + port + "/SyncService";
+//                    System.out.println("Thử kết nối tới " + remoteUrl + " (attempt " + i + ")");
+//                    SyncService other = (SyncService) Naming.lookup(remoteUrl);
+//                    obj.addSyncTarget(other);
+//                    System.out.println("Đã kết nối tới server " + otherIp);
+//                    break;
+//                } catch (Exception ex) {
+//                    System.err.println("Không kết nối được tới " + otherIp + " (attempt " + i + "): " + ex.getMessage());
+//                    Thread.sleep(2000);
+//                    if (i == MAX_TRIES) System.err.println("Hết lần thử, sẽ tiếp tục chạy và chờ manual reconnect");
+//                }
+//            }
+//            System.out.println("Đã kết nối tới serverB");
 
             keepAlive();
         } catch (Exception e) {
