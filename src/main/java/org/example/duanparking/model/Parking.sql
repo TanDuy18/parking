@@ -134,8 +134,8 @@ CREATE TABLE IF NOT EXISTS Payment (
     FOREIGN KEY (transaction_id) REFERENCES ParkingHistory(transaction_id),
     FOREIGN KEY (renter_id) REFERENCES renter(renter_id),
     CONSTRAINT chk_payment_source CHECK (
-(payment_type = 'VISITOR' AND transaction_id IS NOT NULL AND renter_id IS NULL) OR
-(payment_type = 'RENTAL' AND renter_id IS NOT NULL AND transaction_id IS NULL)
+(payment_type = 'VISITOR' AND transaction_id IS NOT NULL) OR
+(payment_type = 'RENTAL' AND (renter_id IS NOT NULL OR transaction_id IS NOT NULL))
     ),
     INDEX idx_type_time (payment_type, payment_time),
     INDEX idx_transaction (transaction_id),
