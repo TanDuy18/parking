@@ -1,0 +1,37 @@
+/* Thanh cuộn tổng thể */
+.scroll-pane .scroll-bar {
+    -fx-background-color: transparent; /* trong suốt nền thanh cuộn */
+}
+
+/* Thanh cuộn dọc và ngang */
+.scroll-bar:vertical, .scroll-bar:horizontal {
+    -fx-background-color: transparent;
+}
+
+/* Thanh trượt (phần di chuyển) */
+.scroll-bar:vertical .thumb, .scroll-bar:horizontal .thumb {
+    -fx-background-color: rgba(160, 160, 160, 0.6); /* màu thanh trượt */
+    -fx-background-radius: 8px;  /* bo tròn */
+}
+
+/* Khi hover chuột lên thanh trượt */
+.scroll-bar:vertical .thumb:hover, .scroll-bar:horizontal .thumb:hover {
+    -fx-background-color: rgba(120, 120, 120, 0.8);
+}
+
+/* Ẩn các nút mũi tên */
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-opacity: 0;
+    -fx-padding: 0;
+}
+.scroll-pane .scroll-bar {
+    -fx-opacity: 0;
+    -fx-background-color: transparent;
+    -fx-pref-width: 8px;
+}
+
+.scroll-pane:hover .scroll-bar {
+    -fx-opacity: 1;
+    -fx-background-color: transparent;
+}

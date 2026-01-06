@@ -1,0 +1,26 @@
+.check-box {
+    -fx-font-size: 12px;              /* chữ to hơn */
+    -fx-text-fill: #1A1A1A;           /* màu chữ đậm hơn */
+    -fx-label-padding: 3 0 0 6;       /* tăng khoảng cách giữa ô và chữ */
+}
+
+.check-box .box {
+    -fx-padding: 5;                   /* tăng size ô checkbox */
+    -fx-border-color: #2A78D3;        /* viền xanh đậm */
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-border-width: 2;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: #fff !important;
+}
+
+.check-box:selected .box {
+    -fx-background-color: #2A78D3;    /* nền xanh khi check */
+    -fx-border-color: #2A78D3;
+}
+
+.check-box:hover .box {
+    -fx-border-color: #4EA0FF;        /* hover viền sáng hơn */
+}
