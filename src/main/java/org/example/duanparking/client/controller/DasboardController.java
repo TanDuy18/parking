@@ -246,14 +246,12 @@ public class DasboardController implements Initializable {
                 }
 
                 Platform.runLater(() -> {
-//                    transaction_id_Field0.setText(String.valueOf(data.getHistory().getTransactionId()));
-//                    ownerField0.setText(data.getVehicle().getOwner());
-//                    brandField0.setText(data.getVehicle().getBrand());
-//                    placeField0.setText(data.getSpotId());
-//                    InforField0.setText(data.getVehicle().getVehicleType());
-//                    arrivalTimeField0.setText(data.getHistory().getEntryTime().format(formatter));
-//                    leaveTimeField0.setText(data.getHistory().getExitTime().format(formatter));
-//                    priceField0.setText(formatVND(data.getHistory().getFee()));
+                    transaction_id_Field0.setText(String.valueOf(data.getParkingHistory().getTransactionId()));
+                    placeField0.setText(data.getSpotId());
+                    InforField0.setText(data.getVehicle().getVehicleType());
+                    arrivalTimeField0.setText(data.getParkingHistory().getEntryTime().format(formatter));
+                    leaveTimeField0.setText(data.getParkingHistory().getExitTime().format(formatter));
+                    priceField0.setText(formatVND(data.getParkingHistory().getFee()));
                 });
 
             } catch (Exception e) {
@@ -264,16 +262,39 @@ public class DasboardController implements Initializable {
 
     private void autoFillInInfo() {
         String plate = plateField1.getText().trim();
-        if (plate.isEmpty())
-            return;
+        if (plate.length() < 4) return; // Chỉ tìm khi biển số đủ dài
 
         new Thread(() -> {
             try {
-                ParkingSlotDTO data = parkingInterface.getVehicleInfoForIn(plate);
+                ParkingSlotDTO data = parkingInterface.getVehicleInfo(plate, DisplayMode.DASHBOARD);
 
-                if (data == null) {
-                    System.out.println(" ");
-                }
+                Platform.runLater(() -> {
+                    if (data != null && data.getVehicle() != null) {
+                        // 1. Tự động chọn loại xe
+                        InforField1.setValue(data.getVehicle().getVehicleType());
+                        if (data.getSpotId() != null) {
+                            placeField1.setText(data.getSpotId());
+                            if (gridManager != null) {
+                                gridManager.highlightSlotById(data.getSpotId());
+                            }
+                            if (data.getCurrentRent() != null) {
+                                if (data.getCurrentRent().getSchedules() == null || data.getCurrentRent().getSchedules().isEmpty()) {
+                                    System.out.println("Cảnh báo: Xe " + plate + " không có lịch hôm nay.");
+                                    plateField1.setStyle("-fx-border-color: orange;");
+                                } else {
+                                    plateField1.setStyle("-fx-border-color: green;");
+                                }
+                            }
+                        }
+                    } else {
+                        // Xe vãng lai mới hoặc không tìm thấy: reset để nhập tay
+                        placeField1.clear();
+                        plateField1.setStyle(null);
+                    }
+
+                    // Sau khi auto-fill xong, cập nhật giờ đến nếu form đã đủ thông tin
+                    checkAndSetArrivalTime();
+                });
             } catch (RemoteException e) {
                 e.printStackTrace();
             }
@@ -335,105 +356,122 @@ public class DasboardController implements Initializable {
         InforField1.valueProperty().addListener((obs, oldVal, newVal) -> debounce.playFromStart());
 
         debounceOut.setOnFinished(e -> autoFillOutInfo());
-        plateField0.textProperty().addListener((obs, oldVal, newVal) -> debounceOut.playFromStart());
+        plateField0.textProperty().addListener((obs, oldVal, newVal) -> {
+            clearOutFields();
+            debounceOut.playFromStart();});
 
         debounceIn.setOnFinished(e -> autoFillInInfo());
-        plateField1.textProperty().addListener((obs, oldVal, newVal) -> debounceOut.playFromStart());
+        plateField1.textProperty().addListener((obs, oldVal, newVal) -> {clearInFields();debounceIn.playFromStart();});
 
 
         gridManager.setClickHandler(((slot, pane) -> {
-           
+           if(inPane.isVisible()) {
+               placeField1.setText(slot.getSpotId());
+               placeField0.clear();
+           }else{
+               placeField0.setText(slot.getSpotId());
+               placeField1.clear();
+           }
+
         }));
     }
 
     @FXML
     void acceptHandle(ActionEvent event) {
-        LocalDateTime current;
         switch (checkInOut) {
-            case 1:
-                current = LocalDateTime.now();
-
+            case 1: // XE VÀO
+                LocalDateTime current = LocalDateTime.now();
                 String plateName1 = plateField1.getText().trim();
-
-                String place = placeField1.getText();
-
+                String place = placeField1.getText().trim();
                 String vehicleInfor = InforField1.getSelectionModel().getSelectedItem();
 
-                if (plateName1.isEmpty() || place.isEmpty()) {
-                    Platform.runLater(() -> openNotificationScreen("Vui lòng nhập đủ"));
+                // 1. Kiểm tra nhanh ở Client
+                if (plateName1.isEmpty() || place.isEmpty() || vehicleInfor == null) {
+                    openNotificationScreen("Vui lòng nhập đầy đủ thông tin (Biển số, Vị trí, Loại xe)");
                     return;
                 }
 
                 new Thread(() -> {
                     try {
-                        boolean exists = parkingInterface.checkIdIn(plateName1);
-                        boolean exists2 = parkingInterface.checkPlaceIn(place);
-                        if (exists2) {
-                            Platform.runLater(() -> openNotificationScreen("Vị trí này đã được thuê rồi"));
-                            return;
-                        }
-                        if (exists) {
-                            Platform.runLater(() -> openNotificationScreen("Biển số đã trong bãi đỗ!"));
-                            return;
-                        }
-                        try {
-                            ParkingSlotDTO slot = new ParkingSlotDTO();
-                            VehicleDTO vehicle = new VehicleDTO();
-                            ParkingHistoryDTO history = new ParkingHistoryDTO();
+                        // 2. Tạo cấu trúc DTO đầy đủ (Quan trọng nhất)
+                        ParkingSlotDTO slot = new ParkingSlotDTO();
+                        VehicleDTO vehicle = new VehicleDTO();
+                        ParkingHistoryDTO history = new ParkingHistoryDTO();
 
-                            slot.setSpotId(place);
-                            slot.setStatus("OCCUPIED");
+                        // Gán thông tin xe
+                        vehicle.setPlateNumber(plateName1);
+                        vehicle.setVehicleType(vehicleInfor);
+                        // Nếu có thêm Brand/Owner thì set ở đây (ví dụ lấy từ autoFill)
 
-                            history.setEntryTime(current);
+                        // Gán lịch sử vào
+                        history.setEntryTime(current);
 
+                        // Gán mọi thứ vào Slot
+                        slot.setSpotId(place);
+                        slot.setStatus("OCCUPIED");
+                        slot.setVehicle(vehicle);         // SỬA LỖI NPE TẠI ĐÂY
+                        slot.setParkingHistory(history); // SỬA LỖI NPE TẠI ĐÂY
 
-                            vehicle.setPlateNumber(plateName1);
-                            vehicle.setVehicleType(vehicleInfor);
-                            int i = parkingInterface.updateSlotStatus(slot);
-                            switch (i) {
+                        // 3. Gọi Server (Server sẽ tự check exists, check Renter, check Occupied)
+                        int result = parkingInterface.updateSlotStatus(slot);
+
+                        Platform.runLater(() -> {
+                            switch (result) {
                                 case 0:
-                                    Platform.runLater(() -> {
-
-                                        placeField1.setText(" "); arrivalTimeField1.setText(" "); plateField1.setText(" ");
-                                    });
+                                    openNotificationScreen("Cho xe vào thành công!");
+                                    clearInFields(); // Hàm xóa trắng đã viết ở trên
+                                    plateField1.clear();
                                     break;
                                 case 1:
-                                    Platform.runLater(() -> openNotificationScreen("Slot đang được thuê"));
-                                    break;
-                                case 2:
-                                    Platform.runLater(() -> openNotificationScreen("Có người thuê slot này rồi"));
+                                    openNotificationScreen("Lỗi: Vị trí này hiện đã có xe khác đỗ!");
                                     break;
                                 case 3:
-                                    Platform.runLater(() -> openNotificationScreen("Xe đã có trong bãi"));
+                                    openNotificationScreen("Lỗi: Không tìm thấy mã vị trí này trong hệ thống!");
+                                    break;
+                                case 4:
+                                    openNotificationScreen("Lỗi: Xe này hiện đã có trong bãi rồi!");
+                                    break;
+                                case 6:
+                                    openNotificationScreen("Lỗi: Đây là vị trí ưu tiên đã được khách khác đặt thuê!");
+                                    break;
+                                case 2:
+                                    openNotificationScreen("Hệ thống đang bận (tranh chấp), vui lòng thử lại!");
+                                    break;
+                                default:
+                                    openNotificationScreen("Lỗi hệ thống không xác định (Mã: " + result + ")");
                                     break;
                             }
-                        } catch (RemoteException e) {
-                            e.printStackTrace();
-                        }
+                        });
                     } catch (RemoteException e) {
                         e.printStackTrace();
+                        Platform.runLater(() -> openNotificationScreen("Lỗi kết nối Server!"));
                     }
                 }).start();
                 break;
-            case 0:
+
+            case 0: // XE RA
+                if (outData == null) {
+                    openNotificationScreen("Vui lòng nhập biển số và tìm xe trước khi bấm Chấp nhận!");
+                    return;
+                }
                 new Thread(() -> {
                     try {
                         boolean check = parkingInterface.takeVehicleOut(outData);
-
-                        if (check) {
-                            Platform.runLater(() -> {
-                                transaction_id_Field0.setText(" ");
-                                placeField0.setText(" ");
-                                InforField0.setText(" ");
-                                arrivalTimeField0.setText(" ");
-                                leaveTimeField0.setText(" ");
-                                priceField0.setText(" ");
-                            });
-                        }
+                        Platform.runLater(() -> {
+                            if (check) {
+                                openNotificationScreen("Xe ra thành công!");
+                                clearOutFields();
+                                plateField0.clear();
+                                outData = null;
+                            } else {
+                                openNotificationScreen("Lỗi khi thực hiện xe ra!");
+                            }
+                        });
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }).start();
+                break;
         }
     }
 
@@ -470,6 +508,28 @@ public class DasboardController implements Initializable {
                 e.printStackTrace();
             }
         }).start(); 
+    }
+
+    private void clearInFields() {
+        placeField1.clear();
+        arrivalTimeField1.clear();
+        InforField1.setValue(null);
+        plateField1.setStyle(null); // Xóa màu viền cũ (xanh/cam)
+        if (gridManager != null) {
+            gridManager.highlightSlotById(null); // Bỏ highlight trên bản đồ
+        }
+    }
+
+    private void clearOutFields() {
+        transaction_id_Field0.clear();
+        InforField0.clear();
+        arrivalTimeField0.clear();
+        leaveTimeField0.clear();
+        placeField0.clear();
+        priceField0.clear();
+        if (gridManager != null) {
+            gridManager.highlightSlotById(null); // Bỏ highlight trên bản đồ
+        }
     }
 
 }

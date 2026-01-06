@@ -23,7 +23,6 @@ public class SyncServiceImpl extends UnicastRemoteObject implements SyncService 
         if (thisServer.equals(slot.getSourceServer())) {
             return;
         }
-        System.out.println(slot.toString());
         parkingImpl.takeVehicleInFromSync(slot);
 
     }

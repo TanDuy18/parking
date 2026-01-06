@@ -5,7 +5,7 @@ import java.time.LocalTime;
 
 public class ScheduleDTO implements Serializable {
     private static final long serialVersionUID = 1L;
-
+    private String dayOfWeek;
     private String renterName;
     private LocalTime startTime;
     private LocalTime endTime;
@@ -16,6 +16,14 @@ public class ScheduleDTO implements Serializable {
         this.renterName = renterName;
         this.startTime = startTime;
         this.endTime = endTime;
+    }
+
+    public String getDayOfWeek() {
+        return dayOfWeek;
+    }
+
+    public void setDayOfWeek(String dayOfWeek) {
+        this.dayOfWeek = dayOfWeek;
     }
 
     // Getters và Setters

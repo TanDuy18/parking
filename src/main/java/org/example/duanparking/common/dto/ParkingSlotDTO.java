@@ -1,5 +1,6 @@
 package org.example.duanparking.common.dto;
 
+import org.example.duanparking.common.dto.rent.RentDTO;
 import org.example.duanparking.common.dto.rent.ScheduleDTO;
 
 import java.io.Serializable;
@@ -17,40 +18,32 @@ public class ParkingSlotDTO implements Serializable {
     private int row, col;
     private String areaType;
     private int version;
+    private String zone;
     private VehicleDTO vehicle;
     private ParkingHistoryDTO parkingHistory;
-    private List<ScheduleDTO> schedules = new ArrayList();
-    private Integer rentID;
-    private LocalTime startTime;
-    private LocalTime endTime; 
+    private Integer RentID;
+    private RentDTO currentRent;
+    public List<ScheduleDTO> getSchedules() {
+        return (currentRent != null) ? currentRent.getSchedules() : new ArrayList<>();
+    }
+
+
+    public Integer getRentID() {
+        return RentID;
+    }
+
+    public void setRentID(Integer rentID) {
+        RentID = rentID;
+    }
 
     public ParkingSlotDTO() {}
 
-    public List<ScheduleDTO> getSchedules() {
-        return schedules; 
+    public String getZone() {
+        return zone;
     }
 
-    public void setSchedules(List<ScheduleDTO> schedules) {
-        this.schedules = schedules; 
-    }
-
-    public void addSchedule(ScheduleDTO dto) {
-        this.schedules.add(dto);
-    }
-
-    public LocalTime getStartTime() {
-        return startTime; 
-    }
-
-    public void setStartTime(LocalTime startTime) {
-        this.startTime = startTime; 
-    }
-    public LocalTime getEndTime() {
-        return endTime; 
-    }
-
-    public void setEndTime(LocalTime endTime) {
-        this.endTime = endTime; 
+    public void setZone(String zone) {
+        this.zone = zone;
     }
     public String getSpotId() {
         return spotId;
@@ -116,11 +109,11 @@ public class ParkingSlotDTO implements Serializable {
         this.parkingHistory = parkingHistory;
     }
 
-    public Integer getRentID() {
-        return rentID;
+    public RentDTO getCurrentRent() {
+        return currentRent;
     }
 
-    public void setRentID(Integer rentID) {
-        this.rentID = rentID;
+    public void setCurrentRent(RentDTO currentRent) {
+        this.currentRent = currentRent;
     }
 }

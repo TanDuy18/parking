@@ -1,6 +1,8 @@
 package org.example.duanparking.client.controller;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -14,11 +16,13 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
+import javafx.util.Duration;
 import org.example.duanparking.common.TimeSpinner;
 import org.example.duanparking.common.dto.*;
 import org.example.duanparking.common.dto.rent.DayRent;
 import org.example.duanparking.common.dto.rent.RentEvent;
 import org.example.duanparking.common.dto.rent.RentResult;
+import org.example.duanparking.common.dto.rent.ScheduleDTO;
 import org.example.duanparking.common.remote.ParkingInterface;
 import org.example.duanparking.model.DisplayMode;
 
@@ -37,21 +41,14 @@ public class RentController implements Initializable {
     @FXML
     private TextField brandField;
     @FXML
-    private ComboBox<?> buoi2;
-    @FXML
-    private TimeSpinner endTimeSpinner1;
-    @FXML
     private CheckBox friday;
-    @FXML
-    private DatePicker fromDatePicker1;
     @FXML
     private Label fromValue1;
     @FXML
     private GridPane gridPane;
     @FXML
     private CheckBox monday;
-    @FXML
-    private TextField moneyField1;
+
     @FXML
     private TextField moneyField2;
     @FXML
@@ -76,30 +73,22 @@ public class RentController implements Initializable {
     private TextField placeField;
     @FXML
     private TextField plateField;
-    @FXML
-    private RadioButton rentByBuoi;
-    @FXML
-    private AnchorPane rentByBuoiPane;
-    @FXML
-    private RadioButton rentByKhac;
-    @FXML
-    private AnchorPane rentByKhacPane;
+
     @FXML
     private CheckBox saturday;
-    @FXML
-    private TimeSpinner startTimeSpinner1;
+
     @FXML
     private CheckBox sunday;
     @FXML
     private CheckBox thursday;
-    @FXML
-    private DatePicker toDatePicker1;
     @FXML
     private Label toValue1;
     @FXML
     private CheckBox tuesday;
     @FXML
     private ComboBox<String> vehicleTypeField;
+    @FXML
+    private ComboBox<String> khu;
     @FXML
     private CheckBox wednesday;
 
@@ -134,22 +123,20 @@ public class RentController implements Initializable {
 
     @FXML private DatePicker date3dPicker;
     @FXML private Button changeDateBtn;
-    @FXML private Button changeTimeline;
-    @FXML private ComboBox<String> buoiBox;
-    private ScheduledExecutorService scheduler;
-    private GridPane parkingGrid;
+    @FXML private ToggleButton mapButton;
+    @FXML private ToggleButton timeLineButton;
+    ToggleGroup group = new ToggleGroup();
     private ParkingInterface service; 
     private ParkingSlotDTO selectedSlot;
-    private AnchorPane lastHighlightedPane;
     private ParkingGridManager parkingGridManager;
     private List<CheckBox> dayCheckBoxes;
     LocalDate today = LocalDate.now();
     private final Map<CheckBox, TimeSpinner> startTimeMap = new HashMap<>();
     private final Map<CheckBox, TimeSpinner> endTimeMap = new HashMap<>();
     private final Map<CheckBox, AnchorPane> dayToPaneMap = new HashMap<>();
-
-    private final double totalRentFee = 0;
-
+    private PauseTransition delay = new PauseTransition(Duration.seconds(2));
+    private ParkingInterface parkingInterface;
+    private boolean isAutoFilling = false;
     private List<ParkingSlotDTO> slots;
 
     DateTimeFormatter fmt = new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("dd/MM/yyyy")
@@ -278,7 +265,6 @@ public class RentController implements Initializable {
             parkingGridManager.setCurrentMode(DisplayMode.RENT_MANAGEMENT);
             parkingGridManager.updateGrid(slots);
 
-
             parkingGridManager.setClickHandler((slot, pane) -> {
                 if (!"FREE".equalsIgnoreCase(slot.getStatus())) {
                    new Thread(() -> {
@@ -289,7 +275,6 @@ public class RentController implements Initializable {
                 }
                 System.out.println(slot.getAreaType());
                 selectedSlot = slot;
-                lastHighlightedPane = pane;
                 placeField.setText(slot.getSpotId());
                 calculateTotalFee();
 
@@ -301,6 +286,8 @@ public class RentController implements Initializable {
     }
 
     private void calculateTotalFee() {
+        if (isAutoFilling) return;
+
         if (selectedSlot == null || vehicleTypeField.getValue() == null) {
             moneyField2.setText("0 ₫");
             return;
@@ -449,28 +436,104 @@ public class RentController implements Initializable {
     private void LoadUI() {
         fromValue1.setText(LocalDate.now().format(fmt));
         vehicleTypeField.getItems().addAll("CAR", "MOTORBIKE", "TRUCK", "BICYCLE");
+        khu.setItems(FXCollections.observableArrayList("A", "B", "C", "D"));
+        khu.setVisible(false);
         toValue1.setText("--/--/----");
         date3dPicker.setValue(today);
-        changeTimeline.setOnAction(event -> {
+        mapButton.setToggleGroup(group);
+        timeLineButton.setToggleGroup(group);
+        mapButton.setSelected(true);
+        group.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (newToggle == null) {
+                oldToggle.setSelected(true);
+                return;
+            }
 
-        });
 
-        changeDateBtn.setOnAction(event -> {
-            handleChangeDateTime();
-        });
+            mapButton.setDisable(newToggle == mapButton);
+            timeLineButton.setDisable(newToggle == timeLineButton);
 
-        buoiBox.getItems().addAll("MORNING", "AFTERNOON", "EVENING");
-        buoiBox.setValue(buoiBox.getItems().get(0));
-        date3dPicker.setDayCellFactory(picker -> new DateCell() {
-            @Override
-            public void updateItem(LocalDate date, boolean empty) {
-                super.updateItem(date, empty);
-                if (date.isBefore(today)) {
-                    setDisable(true);
-                    setStyle("-fx-opacity: 0.4;");
-                }
+
+            if (newToggle == mapButton) {
+                khu.setVisible(false);
+                parkingGridManager.updateGrid(slots);
+            } else {
+                khu.setVisible(true);
+                khu.getSelectionModel().selectFirst();
+                String selectedZone = khu.getSelectionModel().getSelectedItem();
+                List<ParkingSlotDTO> filteredSlots = slots.stream()
+                        .filter(s -> s.getZone() != null && s.getZone().equalsIgnoreCase(selectedZone))
+                        .toList();
+
+                parkingGridManager.buildTimeline(filteredSlots, selectedZone);
             }
         });
+        khu.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                handleAreaSelection(newVal);
+            }
+        });
+        delay.setOnFinished(event -> {
+            String plate = plateField.getText().trim();
+            if (plate.length() >= 4) {
+                new Thread(() -> {
+                    try {
+                        ParkingSlotDTO vehicleInfo = service.getVehicleInfo(plate, DisplayMode.RENT_MANAGEMENT);
+
+                        Platform.runLater(() -> {
+                            isAutoFilling = true; // Chặn auto-calculate để không bị nhảy số tiền lung tung
+
+                            if (vehicleInfo != null && vehicleInfo.getVehicle() != null) {
+                                ownerField.setText(vehicleInfo.getVehicle().getOwner());
+                                phoneFiled.setText(vehicleInfo.getVehicle().getPhone());
+                                brandField.setText(vehicleInfo.getVehicle().getBrand());
+                                vehicleTypeField.setValue(vehicleInfo.getVehicle().getVehicleType());
+                                placeField.setText(vehicleInfo.getSpotId());
+
+                                this.selectedSlot = slots.stream()
+                                        .filter(s -> s.getSpotId().equals(vehicleInfo.getSpotId()))
+                                        .findFirst().orElse(null);
+
+                                if (vehicleInfo.getCurrentRent() != null) {
+                                    toValue1.setText(vehicleInfo.getCurrentRent().getEndDate().format(fmt));
+                                    fromValue1.setText(vehicleInfo.getCurrentRent().getStartDate().format(fmt));
+                                    moneyField2.setText(formatVND(vehicleInfo.getCurrentRent().getMonthlyRate()));
+
+                                    updateDayCheckboxState(vehicleInfo.getCurrentRent().getStartDate(), vehicleInfo.getCurrentRent().getEndDate());
+                                } else {
+                                    resetRentInfo();
+                                }
+
+                                dayCheckBoxes.forEach(cb -> cb.setSelected(false));
+                                if (vehicleInfo.getSchedules() != null) {
+                                    for (ScheduleDTO s : vehicleInfo.getSchedules()) {
+                                        CheckBox cb = getCheckBoxByDayName(s.getDayOfWeek());
+                                        if (cb != null) {
+                                            cb.setSelected(true);
+                                            if (startTimeMap.containsKey(cb)) startTimeMap.get(cb).getValueFactory().setValue(s.getStartTime());
+                                            if (endTimeMap.containsKey(cb)) endTimeMap.get(cb).getValueFactory().setValue(s.getEndTime());
+                                        }
+                                    }
+                                }
+                            } else {
+                                clearAllFieldsExceptPlate();
+                            }
+
+                            isAutoFilling = false;
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+            }
+        });
+
+        plateField.textProperty().addListener((obs, oldVal, newVal) -> {
+            delay.stop();
+            delay.playFromStart();
+        });
+
+
     }
 
     @FXML
@@ -492,6 +555,20 @@ public class RentController implements Initializable {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private CheckBox getCheckBoxByDayName(String dayName) {
+        if (dayName == null) return null;
+        return switch (dayName.toUpperCase()) {
+            case "MONDAY", "MON" -> monday;
+            case "TUESDAY", "TUE" -> tuesday;
+            case "WEDNESDAY", "WED" -> wednesday;
+            case "THURSDAY", "THU" -> thursday;
+            case "FRIDAY", "FRI" -> friday;
+            case "SATURDAY", "SAT" -> saturday;
+            case "SUNDAY", "SUN" -> sunday;
+            default -> null;
+        };
     }
 
     public void updateRentDates(LocalDate start, LocalDate end) {
@@ -559,79 +636,103 @@ public class RentController implements Initializable {
         return false;
     }
 
-    private void handleChangeDateTime() {
-        LocalDate selectedDate = date3dPicker.getValue();
-        String selectedSession = buoiBox.getValue();
+//    private void handleChangeDateTime() {
+//        LocalDate selectedDate = date3dPicker.getValue();
+//
+//
+//        if (selectedDate == null) {
+//            showAlert("Vui lòng chọn ngày!");
+//            return;
+//        }
+//
+//        Platform.runLater(() -> {
+//            try {
+//                updateGridForSession(selectedDate);
+//            } catch (Exception e) {
+//                showAlert("Lỗi cập nhật!");
+//                e.printStackTrace();
+//            }
+//        });
+//    }
+//    private void updateGridForSession(LocalDate date, String session) {
+//        try {
+//            List<String> rentedSpots = service.getRentalSpotOnDayWithSession(date, session);
+//
+//            Set<String> rentedSpotIds = rentedSpots.stream()
+//                    .map(s -> s.split(":")[0])
+//                    .collect(Collectors.toSet());
+//
+//            for (Node node : gridPane.getChildren()) {
+//                if (node instanceof AnchorPane pane && pane.getId() != null && pane.getId().startsWith("slot")) {
+//
+//                    String spotId = pane.getId().substring(4); // slotA01 -> A01
+//                    String color;
+//
+//                    if (rentedSpotIds.contains(spotId)) {
+//
+//                        color = "#b266ff"; // tím nhạt
+//                    } else {
+//                        // Slot không thuê → lấy màu theo areaType
+//                        color = "#44aa44"; // default NORMAL green
+//
+//                        for (ParkingSlotDTO s : slots) {
+//                            if (s.getSpotId().equals(spotId)) {
+//
+//                                if ("FREE".equalsIgnoreCase(s.getStatus())) {
+//                                    color = switch (s.getAreaType()) {
+//                                        case "PREMIUM" -> "#3388ff"; // xanh premium
+//                                        case "MOTOR" -> "#ffaa00";
+//                                        case "EV" -> "#44ff44";
+//                                        default -> "#44aa44";
+//                                    };
+//                                } else {
+//                                    color = "#ff4444"; // occupied, reserved, rented...
+//                                }
+//                                break;
+//                            }
+//                        }
+//                    }
+//
+//                    pane.setStyle(
+//                            "-fx-background-color: " + color + ";" +
+//                                    "-fx-border-color: black;" +
+//                                    "-fx-border-width: 1;"
+//                    );
+//                }
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 
-        if (selectedDate == null) {
-            showAlert("Vui lòng chọn ngày!");
-            return;
-        }
-        if (selectedSession == null) {
-            showAlert("Vui lòng chọn buổi!");
-            return;
-        }
-        Platform.runLater(() -> {
-            try {
-                updateGridForSession(selectedDate, selectedSession);
-            } catch (Exception e) {
-                showAlert("Lỗi cập nhật!");
-                e.printStackTrace();
-            }
+      private void handleAreaSelection(String areaName) {
+        // Lọc danh sách slot theo khu vực đã chọn
+        List<ParkingSlotDTO> filteredSlots = slots.stream()
+                .filter(slots -> slots.getZone().equalsIgnoreCase(areaName))
+                .collect(Collectors.toList());
+
+        parkingGridManager.buildTimeline(filteredSlots, areaName);
+    }
+
+    private void clearAllFieldsExceptPlate() {
+        ownerField.clear();
+        phoneFiled.clear();
+        brandField.clear();
+        vehicleTypeField.setValue(null);
+        placeField.clear();
+        moneyField2.setText("0 ₫");
+        fromValue1.setText(LocalDate.now().format(fmt));
+        toValue1.setText("--/--/----");
+        dayCheckBoxes.forEach(cb -> {
+            cb.setSelected(false);
+            cb.setDisable(false);
         });
     }
-    private void updateGridForSession(LocalDate date, String session) {
-        try {
-            List<String> rentedSpots = service.getRentalSpotOnDayWithSession(date, session);
 
-            Set<String> rentedSpotIds = rentedSpots.stream()
-                    .map(s -> s.split(":")[0])
-                    .collect(Collectors.toSet());
-
-            for (Node node : gridPane.getChildren()) {
-                if (node instanceof AnchorPane pane && pane.getId() != null && pane.getId().startsWith("slot")) {
-
-                    String spotId = pane.getId().substring(4); // slotA01 -> A01
-                    String color;
-
-                    if (rentedSpotIds.contains(spotId)) {
-                        // 🔥 Slot đang thuê → màu tím
-                        color = "#b266ff"; // tím nhạt
-                    } else {
-                        // Slot không thuê → lấy màu theo areaType
-                        color = "#44aa44"; // default NORMAL green
-
-                        for (ParkingSlotDTO s : slots) {
-                            if (s.getSpotId().equals(spotId)) {
-
-                                if ("FREE".equalsIgnoreCase(s.getStatus())) {
-                                    color = switch (s.getAreaType()) {
-                                        case "PREMIUM" -> "#3388ff"; // xanh premium
-                                        case "MOTOR" -> "#ffaa00";
-                                        case "EV" -> "#44ff44";
-                                        default -> "#44aa44";
-                                    };
-                                } else {
-                                    color = "#ff4444"; // occupied, reserved, rented...
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    pane.setStyle(
-                            "-fx-background-color: " + color + ";" +
-                                    "-fx-border-color: black;" +
-                                    "-fx-border-width: 1;"
-                    );
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void resetRentInfo() {
+        fromValue1.setText(LocalDate.now().format(fmt));
+        toValue1.setText("--/--/----");
+        moneyField2.setText("0 ₫");
     }
-
-
-
 
 }

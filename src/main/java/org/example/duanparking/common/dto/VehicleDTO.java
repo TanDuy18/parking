@@ -7,6 +7,7 @@ public class VehicleDTO implements Serializable {
     private int vehicleId;
     private String plateNumber;
     private String ownerName;
+    private String phoneNumber; 
     private String brand;
     private String vehicleType;
 
@@ -44,6 +45,13 @@ public class VehicleDTO implements Serializable {
         this.ownerName = ownerName;
     }
 
+    public String getPhone() {
+        return phoneNumber;
+    }
+
+    public void setPhone(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
     public String getBrand() {
         return brand;
     }

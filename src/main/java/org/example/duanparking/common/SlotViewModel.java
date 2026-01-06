@@ -20,8 +20,6 @@ public class SlotViewModel {
     private final ObjectProperty<LocalTime> currentTime = new SimpleObjectProperty<>(LocalTime.now());
 
     private final ObservableList<ScheduleDTO> dailySchedules = FXCollections.observableArrayList();
-
-    // THAY ĐỔI: Property đại diện cho lịch đang hoạt động (hiển thị trên dashboard)
     private final ObjectProperty<ScheduleDTO> activeSchedule = new SimpleObjectProperty<>();
 
 
@@ -43,6 +41,14 @@ public class SlotViewModel {
                 .findFirst()
                 .orElse(null);
         activeSchedule.set(match);
+
+        if (match != null) {
+            this.startTime.set(match.getStartTime());
+            this.endTime.set(match.getEndTime());
+        } else {
+            this.startTime.set(null);
+            this.endTime.set(null);
+        }
     }
 
     public StringBinding colorBinding(DisplayMode mode) {
