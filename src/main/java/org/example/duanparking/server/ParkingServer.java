@@ -15,7 +15,7 @@ public class ParkingServer  {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 1099;
         String serverName = args.length > 1 ? args[1] : "SERVER_A";
         String myIp = args.length > 2 ? args[2] : "172.20.10.3";
-        String otherIp = args.length > 3 ? args[3] : "172.20.10.2";
+         String otherIp = args.length > 3 ? args[3] : "172.20.10.4";
         try {
             // System.setProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostName());
             System.setProperty("java.rmi.server.hostname", myIp);
@@ -46,7 +46,7 @@ public class ParkingServer  {
                         SyncService other = (SyncService) Naming.lookup(remoteUrl);
                         obj.addSyncTarget(other);
                         System.out.println("=== KẾT NỐI ĐỒNG BỘ THÀNH CÔNG TỚI " + otherIp + " ===");
-                        break; // Tìm thấy rồi thì thoát vòng lặp
+                        break;
                     } catch (Exception ex) {
                         System.err.println("Chưa thấy Server đối tác, thử lại sau 5s...");
                         try { Thread.sleep(5000); } catch (InterruptedException e) { break; }

@@ -27,6 +27,7 @@ public interface ParkingInterface extends Remote {
    ParkingSlotDTO getVehicleInfo(String plateNumber, DisplayMode mode) throws RemoteException;
    boolean takeVehicleOut(ParkingSlotDTO slot) throws RemoteException;
     RentEvent calculateRentPrice(RentEvent event) throws RemoteException;
+    void getVehicleRentFromSync(RentEvent slot) throws RemoteException;
     RentResult acceptRentValue(RentEvent event) throws RemoteException;
     List<String> getRentalSpotOnDayWithSession(LocalDate date, String session) throws RemoteException;
     void ping() throws RemoteException;

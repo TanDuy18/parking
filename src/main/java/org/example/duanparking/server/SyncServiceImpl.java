@@ -23,19 +23,25 @@ public class SyncServiceImpl extends UnicastRemoteObject implements SyncService 
         if (thisServer.equals(slot.getSourceServer())) {
             return;
         }
+        System.out.println("Nhận sync từ server khác");
         parkingImpl.takeVehicleInFromSync(slot);
-
     }
 
     @Override
     public void syncRentPlace(RentEvent rent) throws RemoteException {
-
+        if (rent == null) return;
+        if (thisServer.equals(rent.getSourceServer())) {
+            return;
+        }
+        parkingImpl.getVehicleRentFromSync(rent);
     }
 
     @Override
     public void syncVehicleOut(ParkingOutEvent slot) throws RemoteException {
-
-        System.out.println("Nhận OUT từ server khác: " + slot.getPlateNumber());
+        if (slot == null) return;
+        if (thisServer.equals(slot.getSourceServer())) {
+            return;
+        }
         try {
             parkingImpl.takeVehicleOutFromSync(slot);
         } catch (Exception e) {

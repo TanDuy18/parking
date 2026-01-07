@@ -179,4 +179,7 @@ public class SlotViewModel {
     public void updateTime() {
         this.currentTime.set(LocalTime.now());   
     }
+    public ObservableList<ScheduleDTO> getDailySchedules() {
+        return dailySchedules;
+    }
 }

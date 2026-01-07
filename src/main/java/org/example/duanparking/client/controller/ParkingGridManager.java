@@ -37,10 +37,8 @@ public class ParkingGridManager {
     public StringBinding borderBinding() {
         return Bindings.createStringBinding(() -> {
             if (isHighlighted.get()) {
-                // Khi được chọn: Viền vàng dày, có hiệu ứng phát sáng
                 return "-fx-border-color: #FFD700; -fx-border-width: 4; -fx-border-radius: 5;";
             } else {
-                // Khi bình thường: Viền xám mỏng
                 return "-fx-border-color: #cccccc; -fx-border-width: 1;";
             }
         }, isHighlighted);
@@ -51,6 +49,9 @@ public class ParkingGridManager {
     }
 
 
+    public Map<String, SlotViewModel> getViewModelMap() {
+        return viewModelMap;
+    }
     public ParkingGridManager(GridPane parkingGrid) {
         this.parkingGrid = parkingGrid;
     }

@@ -393,33 +393,25 @@ public class DasboardController implements Initializable {
 
                 new Thread(() -> {
                     try {
-                        // 2. Tạo cấu trúc DTO đầy đủ (Quan trọng nhất)
                         ParkingSlotDTO slot = new ParkingSlotDTO();
                         VehicleDTO vehicle = new VehicleDTO();
                         ParkingHistoryDTO history = new ParkingHistoryDTO();
 
-                        // Gán thông tin xe
                         vehicle.setPlateNumber(plateName1);
                         vehicle.setVehicleType(vehicleInfor);
-                        // Nếu có thêm Brand/Owner thì set ở đây (ví dụ lấy từ autoFill)
-
-                        // Gán lịch sử vào
                         history.setEntryTime(current);
 
-                        // Gán mọi thứ vào Slot
                         slot.setSpotId(place);
                         slot.setStatus("OCCUPIED");
-                        slot.setVehicle(vehicle);         // SỬA LỖI NPE TẠI ĐÂY
-                        slot.setParkingHistory(history); // SỬA LỖI NPE TẠI ĐÂY
+                        slot.setVehicle(vehicle);         
+                        slot.setParkingHistory(history); 
 
-                        // 3. Gọi Server (Server sẽ tự check exists, check Renter, check Occupied)
                         int result = parkingInterface.updateSlotStatus(slot);
 
                         Platform.runLater(() -> {
                             switch (result) {
                                 case 0:
-                                    openNotificationScreen("Cho xe vào thành công!");
-                                    clearInFields(); // Hàm xóa trắng đã viết ở trên
+                                    clearInFields(); 
                                     plateField1.clear();
                                     break;
                                 case 1:
@@ -449,7 +441,7 @@ public class DasboardController implements Initializable {
                 }).start();
                 break;
 
-            case 0: // XE RA
+            case 0:
                 if (outData == null) {
                     openNotificationScreen("Vui lòng nhập biển số và tìm xe trước khi bấm Chấp nhận!");
                     return;
@@ -459,7 +451,6 @@ public class DasboardController implements Initializable {
                         boolean check = parkingInterface.takeVehicleOut(outData);
                         Platform.runLater(() -> {
                             if (check) {
-                                openNotificationScreen("Xe ra thành công!");
                                 clearOutFields();
                                 plateField0.clear();
                                 outData = null;
@@ -491,7 +482,7 @@ public class DasboardController implements Initializable {
                currentStage.setTitle("Rent Parking");
                } catch (Exception e) {
                    e.printStackTrace();
-                   openNotificationScreen("Lỗi load giao diện Rent: " + e.getMessage()); // Dùng method alert của mày
+                   openNotificationScreen("Lỗi load giao diện Rent: " + e.getMessage()); 
                }
            });
     }

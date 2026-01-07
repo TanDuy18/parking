@@ -26,7 +26,6 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
     private List<SyncService> syncTargets = new ArrayList<>();
 
     public ParkingImpl(String serverName) throws RemoteException {
-        super();
         this.serverName = serverName;
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
             clients.removeIf(client -> {
@@ -80,7 +79,20 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             }
         });
     }
+    private void broadcastVehicleRent(RentEvent event) {
+        syncExecutor.submit(() -> {
+            System.out.println("[SYNC-RENT] Đang gửi lịch thuê xe: " + event.getPlate() + " cho ô: " + event.getPlace());
 
+            for (SyncService targetServer : syncTargets) {
+                try {
+                    targetServer.syncRentPlace(event);
+                    System.out.println("[SYNC-RENT] Đồng bộ thành công tới server: " + targetServer.toString());
+                } catch (Exception e) {
+                    System.err.println("[SYNC-RENT] Lỗi gửi tới server " + targetServer + ": " + e.getMessage());
+                }
+            }
+        });
+    }
     @Override
     public ArrayList<ParkingSlotDTO> getAllSlots() throws RemoteException {
         Map<String, ParkingSlotDTO> slotMap = new LinkedHashMap<>();
@@ -176,6 +188,8 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         }
         return new ArrayList<>(slotMap.values());
     }
+
+    @Override
     public int updateSlotStatus(ParkingSlotDTO slot1) throws RemoteException {
         int vehicleId;
         int currentVersion;
@@ -293,7 +307,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         try (PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, v.getPlateNumber());
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return rs.getInt("vehicle_id");
+                if (rs.next()) {return rs.getInt("vehicle_id");}
             }
         }
         String insert = "INSERT INTO Vehicle (plate_number, vehicle_type, owner_name, brand) VALUES (?, ?, ?, ?)";
@@ -654,98 +668,67 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         }
     }
     @Override
-    public void takeVehicleInFromSync(ParkingInEvent slot) throws RemoteException {
+    public void takeVehicleInFromSync(ParkingInEvent event) throws RemoteException {
+        System.out.println("[SYNC-IN] Nhận xe vào từ server " + event.getSourceServer());
         try (Connection conn = DBManager.getConnection()) {
             conn.setAutoCommit(false);
-
             int dbVersion;
-
+            String currentStatus;
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT version FROM parkingslot WHERE spot_id=? FOR UPDATE")) {
-                ps.setString(1, slot.getSpotId());
-                ResultSet rs = ps.executeQuery();
-                if (!rs.next())
-                    return;
-                dbVersion = rs.getInt(1);
-            }
+                    "SELECT version, status FROM parkingslot WHERE spot_id = ? FOR UPDATE")) {
 
-            if (slot.getVersion() <= dbVersion) {
+                ps.setString(1, event.getSpotId());
+                ResultSet rs = ps.executeQuery();
+
+                if (!rs.next()) {
+                    conn.rollback();
+                    return;
+                }
+                dbVersion = rs.getInt("version");
+                currentStatus = rs.getString("status");
+            }
+            if (event.getVersion() <= dbVersion) {
                 conn.rollback();
                 return;
             }
-            int vehicleId;
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT vehicle_id FROM vehicle WHERE plate_number=?")) {
-                ps.setString(1, slot.getPlateNumber());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) {
-                    vehicleId = rs.getInt(1);
-                } else {
-                    try (PreparedStatement insertV = conn.prepareStatement(
-                            "INSERT INTO vehicle(plate_number, owner_name, vehicle_type, brand) VALUES (?,?,?,?)",
-                            Statement.RETURN_GENERATED_KEYS)) {
+            VehicleDTO v = new VehicleDTO();
+            v.setPlateNumber(event.getPlateNumber());
+            v.setVehicleType(event.getVehicleType());
+            v.setOwner(event.getOwnerName());
+            v.setBrand(event.getBrand());
 
-                        insertV.setString(1, slot.getPlateNumber());
-                        insertV.setString(2, slot.getOwnerName());
-                        insertV.setString(3, slot.getVehicleType());
-                        insertV.setString(4, slot.getBrand());
-                        insertV.executeUpdate();
-
-                        ResultSet keys = insertV.getGeneratedKeys();
-                        keys.next();
-                        vehicleId = keys.getInt(1);
-                    }
-                }
-            }
-
+            int vehicleId = getOrCreateVehicle(conn, v);
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE parkingslot SET status='OCCUPIED', version=? WHERE spot_id=?")) {
-                ps.setInt(1, slot.getVersion());
-                ps.setString(2, slot.getSpotId());
+
+                ps.setInt(1, event.getVersion());
+                ps.setString(2, event.getSpotId());
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO ParkingHistory (spot_id, vehicle_id, entry_time, status) VALUES (?, ?, ?, 'ACTIVE')")) {
+
+                ps.setString(1, event.getSpotId());
+                ps.setInt(2, vehicleId);
+                ps.setTimestamp(3, Timestamp.valueOf(event.getEntryTime()));
                 ps.executeUpdate();
             }
 
-            // update history
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO parkinghistory(spot_id, vehicle_id, entry_time, status) VALUES (?,?,?, 'ACTIVE')")) {
-                ps.setString(1, slot.getSpotId());
-                ps.setInt(2, vehicleId);
-                ps.setObject(3, slot.getEntryTime());
-                ps.executeUpdate();
-            }
-            new Thread(() -> {
-                for (ClientCallback client : clients) {
-                    try {
-                        SlotStatusDTO slot1 = new SlotStatusDTO(slot.getSpotId(), "OCCUPIED");
-                        client.onSlotUpdated(slot1);
-                    } catch (RemoteException ex) {
-                        System.err.println("Lỗi callback: " + ex.getMessage());
-                    }
-                }
-            }).start();
             conn.commit();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            notifyClients(event.getSpotId(), "OCCUPIED");
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
-
     @Override
     public void takeVehicleOutFromSync(ParkingOutEvent slot) throws RemoteException {
-
-        // 1. Bỏ qua sự kiện của chính server
-        if (slot.getSourceServer().equals(this.getServerName())) {
-            System.out.println("SYNC OUT: Bỏ qua vì chính mình gửi");
-            return;
-        }
-
         try (Connection conn = DBManager.getConnection()) {
 
             conn.setAutoCommit(false);
 
             String spotId = slot.getSpotId();
             String areaType = null;
-
-            // 2. Lấy area_type từ bảng parkingslot
             try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT area_type FROM parkingslot WHERE spot_id = ?")) {
                 ps.setString(1, spotId);
@@ -929,9 +912,10 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
 
                 insertRenterSchedule(conn, renterId, event.getDays());
 
-                System.out.println(vehicleId + "" + renterId);
                 conn.commit();
+                event.setSourceServer(this.serverName);
 
+                broadcastVehicleRent(event);
                 return new RentResult(true, renterId, "Rent created successfully");
             } catch (Exception e) {
                 conn.rollback();
@@ -989,6 +973,39 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         }
         return spotStatus;
     }
+    @Override
+    public void getVehicleRentFromSync(RentEvent slot) throws RemoteException {
+        try (Connection conn = DBManager.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // 1. Tận dụng các hàm private ông đã viết để lưu vào DB địa phương
+                int vehicleId = getOrCreateVehicle(conn, slot);
+                int renterId = insertRenter(conn, slot, vehicleId);
+                insertRenterSchedule(conn, renterId, slot.getDays());
+
+                conn.commit();
+                System.out.println("[RECEIVE-SYNC] Lưu thành công ô: " + slot.getPlace());
+
+                // 2. QUAN TRỌNG: Cập nhật giao diện Dashboard của server hiện tại
+                // Để các máy Client đang kết nối tới Server B cũng thấy ô đó chuyển sang màu Cam
+                new Thread(() -> {
+                    for (ClientCallback client : clients) {
+                        try {
+                            client.onRentAdded(slot.getPlace(), slot.getDays());
+                        } catch (RemoteException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }).start();
+
+            } catch (Exception e) {
+                conn.rollback();
+                e.printStackTrace();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     private double getCurrentHourlyRate(Connection conn, String areaType, String vehicleType) throws SQLException {
         String sql = "SELECT hourly_rate FROM SlotPricing WHERE area_type = ? AND vehicle_type = ? " +
@@ -1035,7 +1052,6 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
             return amount12 + amountExtra;
         }
     }
-
     private double roundToThousand(double value) {
         return Math.round(value / 1000.0) * 1000;
     }
@@ -1047,7 +1063,7 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
         }
         plate = plate.trim();
 
-        String checkSql = "SELECT vehicle_id, owner_name, owner_phone, vehicle_type, brand FROM Vehicle WHERE plate_number = ?";
+        String checkSql = "SELECT vehicle_id, owner_name, owner_phone, brand FROM Vehicle WHERE plate_number = ?";
         try (PreparedStatement checkPs = conn.prepareStatement(checkSql)) {
             checkPs.setString(1, plate);
             try (ResultSet rs = checkPs.executeQuery()) {
@@ -1056,20 +1072,17 @@ public class ParkingImpl extends UnicastRemoteObject implements ParkingInterface
                     
                     String old_name = rs.getString("owner_name"); 
                     String old_phone = rs.getString("owner_phone");
-                    String vehicle_type = rs.getString("brand"); 
+                    String brand = rs.getString("brand");
 
-                    if(old_name == null || !old_name.equals(e.getOwner()) || old_phone == null || !old_phone.equals(e.getPhone())
-                      || !vehicle_type.equals(e.getVehicleType())) {
-                      String updateSql = "UPDATE Vehicle SET owner_name = ?, owner_phone = ?, vehicle_type = ?, brand = ? WHERE vehicle_id = ?";
+                    if(old_name == null || old_phone == null || brand == null) {
+                      String updateSql = "UPDATE Vehicle SET owner_name = ?, owner_phone = ?, brand = ? WHERE vehicle_id = ?";
                               try (PreparedStatement updatePs = conn.prepareStatement(updateSql)) {
                                   updatePs.setString(1, e.getOwner());
                                   updatePs.setString(2, e.getPhone());
-                                  updatePs.setString(3, e.getVehicleType());
-                                  updatePs.setString(4, e.getBrand());
-                                  updatePs.setInt(5, existingId);
+                                  updatePs.setString(3, e.getBrand());
+                                  updatePs.setInt(4, existingId);
                                   updatePs.executeUpdate();
                               }
-                        
                     }
                     return existingId;
                 }
